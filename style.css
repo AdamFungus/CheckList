@@ -328,7 +328,8 @@ form label {
   font-weight: 850;
 }
 
-form input {
+form input,
+.search-field input {
   width: 100%;
   height: 52px;
   margin-bottom: 18px;
@@ -340,15 +341,18 @@ form input {
   transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
-form input::placeholder {
+form input::placeholder,
+.search-field input::placeholder {
   color: #aaa0a8;
 }
 
-form input:hover {
+form input:hover,
+.search-field input:hover {
   border-color: #bfb0bd;
 }
 
-form input:focus {
+form input:focus,
+.search-field input:focus {
   border-color: var(--plum);
   outline: none;
   box-shadow: 0 0 0 4px rgba(88, 48, 94, 0.1);
@@ -445,6 +449,55 @@ form input:focus {
   font-family: "Arial Rounded MT Bold", "Trebuchet MS", ui-sans-serif, sans-serif;
   font-size: 21px;
   letter-spacing: -0.03em;
+}
+
+.search-field {
+  position: relative;
+}
+
+.search-field input {
+  margin: 0;
+  padding-left: 42px;
+  padding-right: 14px;
+}
+
+.search-icon {
+  position: absolute;
+  top: 50%;
+  left: 16px;
+  z-index: 1;
+  width: 15px;
+  height: 15px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  color: #897c87;
+  pointer-events: none;
+  transform: translateY(-60%);
+}
+
+.search-icon::after {
+  position: absolute;
+  right: -6px;
+  bottom: -4px;
+  width: 7px;
+  height: 2px;
+  border-radius: 99px;
+  background: currentColor;
+  content: "";
+  transform: rotate(45deg);
+  transform-origin: left center;
+}
+
+.library-search {
+  margin-bottom: 13px;
+}
+
+.library-search input {
+  height: 48px;
+}
+
+.search-empty-message {
+  padding: 7px 2px 5px;
 }
 
 .saved-list-grid {
@@ -623,15 +676,14 @@ form input:focus {
   transition: width 350ms ease;
 }
 
-.task-form {
+.task-toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
 }
 
-.task-form input {
+.task-search input {
   height: 54px;
-  margin: 0;
 }
 
 .add-button {
@@ -639,14 +691,15 @@ form input:focus {
   box-shadow: none;
 }
 
-#task-error {
-  margin: 9px 0 0;
-}
-
 .empty-state {
   padding: 80px 20px 52px;
   text-align: center;
   color: var(--ink-soft);
+}
+
+.search-empty-state {
+  padding-top: 54px;
+  padding-bottom: 36px;
 }
 
 .empty-state > span {
@@ -1134,11 +1187,11 @@ form input:focus {
     font-size: 22px;
   }
 
-  .task-form {
+  .task-toolbar {
     grid-template-columns: 1fr;
   }
 
-  .task-form .primary-button {
+  .task-toolbar .primary-button {
     width: 100%;
   }
 

@@ -12,16 +12,18 @@ const elements = {
   savedListCount: document.querySelector("#saved-list-count"),
   savedListGrid: document.querySelector("#saved-list-grid"),
   emptyLibrary: document.querySelector("#empty-library"),
+  checklistSearchInput: document.querySelector("#checklist-search-input"),
+  noChecklistResults: document.querySelector("#no-checklist-results"),
   checklistTitle: document.querySelector("#checklist-title"),
   backToListsButton: document.querySelector("#back-to-lists-button"),
   deleteChecklistButton: document.querySelector("#delete-checklist-button"),
   newChecklistButton: document.querySelector("#new-checklist-button"),
-  taskForm: document.querySelector("#task-form"),
-  taskInput: document.querySelector("#task-input"),
-  taskError: document.querySelector("#task-error"),
+  taskSearchInput: document.querySelector("#task-search-input"),
+  openAddTaskButton: document.querySelector("#open-add-task-button"),
   taskList: document.querySelector("#task-list"),
   taskTemplate: document.querySelector("#task-template"),
   emptyTasks: document.querySelector("#empty-tasks"),
+  noTaskResults: document.querySelector("#no-task-results"),
   completedCount: document.querySelector("#completed-count"),
   taskCount: document.querySelector("#task-count"),
   progressPercent: document.querySelector("#progress-percent"),
@@ -31,6 +33,12 @@ const elements = {
   checklistSwitcher: document.querySelector("#checklist-switcher"),
   activityList: document.querySelector("#activity-list"),
   emptyActivity: document.querySelector("#empty-activity"),
+  addTaskModal: document.querySelector("#add-task-modal"),
+  addTaskForm: document.querySelector("#add-task-form"),
+  newTaskInput: document.querySelector("#new-task-input"),
+  addTaskError: document.querySelector("#add-task-error"),
+  closeAddTaskModalButton: document.querySelector("#close-add-task-modal-button"),
+  cancelAddTaskButton: document.querySelector("#cancel-add-task-button"),
   editModal: document.querySelector("#edit-modal"),
   editForm: document.querySelector("#edit-form"),
   editInput: document.querySelector("#edit-task-input"),
@@ -44,6 +52,8 @@ const state = {
   data: loadData(),
   activeChecklistId: null,
   editingTaskId: null,
+  checklistSearchTerm: "",
+  taskSearchTerm: "",
 };
 
 bindInterface();
@@ -58,7 +68,15 @@ function bindInterface() {
   elements.backToListsButton.addEventListener("click", () => showLibrary());
   elements.newChecklistButton.addEventListener("click", () => showLibrary(true));
   elements.deleteChecklistButton.addEventListener("click", () => deleteChecklist(state.activeChecklistId));
-  elements.taskForm.addEventListener("submit", handleAddTask);
+  elements.checklistSearchInput.addEventListener("input", handleChecklistSearch);
+  elements.taskSearchInput.addEventListener("input", handleTaskSearch);
+  elements.openAddTaskButton.addEventListener("click", openAddTaskModal);
+  elements.addTaskForm.addEventListener("submit", handleAddTask);
+  elements.closeAddTaskModalButton.addEventListener("click", closeAddTaskModal);
+  elements.cancelAddTaskButton.addEventListener("click", closeAddTaskModal);
+  elements.addTaskModal.addEventListener("click", (event) => {
+    if (event.target === elements.addTaskModal) closeAddTaskModal();
+  });
   elements.editForm.addEventListener("submit", handleEditTask);
   elements.closeModalButton.addEventListener("click", closeEditModal);
   elements.cancelEditButton.addEventListener("click", closeEditModal);
@@ -66,7 +84,12 @@ function bindInterface() {
     if (event.target === elements.editModal) closeEditModal();
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !elements.editModal.hidden) closeEditModal();
+    if (event.key !== "Escape") return;
+    if (!elements.addTaskModal.hidden) {
+      closeAddTaskModal();
+    } else if (!elements.editModal.hidden) {
+      closeEditModal();
+    }
   });
   window.addEventListener("storage", handleStorageChange);
 }
@@ -119,6 +142,10 @@ function openChecklist(checklistId, persist = true) {
 
   state.activeChecklistId = checklist.id;
   state.data.activeChecklistId = checklist.id;
+  state.taskSearchTerm = "";
+  elements.taskSearchInput.value = "";
+  closeAddTaskModal(false);
+  closeEditModal();
   if (persist) saveData();
 
   elements.welcomeView.hidden = true;
@@ -128,6 +155,7 @@ function openChecklist(checklistId, persist = true) {
 }
 
 function showLibrary(focusName = false, persist = true) {
+  closeAddTaskModal(false);
   closeEditModal();
   state.activeChecklistId = null;
   state.data.activeChecklistId = null;
@@ -141,10 +169,19 @@ function showLibrary(focusName = false, persist = true) {
 }
 
 function renderLibrary() {
-  const checklists = sortedChecklists();
-  elements.savedListCount.textContent = String(checklists.length);
+  const allChecklists = sortedChecklists();
+  const checklists = state.checklistSearchTerm
+    ? allChecklists.filter((checklist) => matchesSearch(checklist.name, state.checklistSearchTerm))
+    : allChecklists;
+
+  elements.savedListCount.textContent = String(allChecklists.length);
   elements.savedListGrid.replaceChildren();
-  elements.emptyLibrary.hidden = checklists.length > 0;
+  elements.emptyLibrary.hidden = allChecklists.length > 0;
+  elements.noChecklistResults.hidden = !(
+    allChecklists.length > 0 &&
+    state.checklistSearchTerm &&
+    checklists.length === 0
+  );
 
   checklists.forEach((checklist) => {
     const item = document.createElement("li");
@@ -210,13 +247,21 @@ function renderActiveChecklist() {
 }
 
 function renderTasks(checklist) {
-  const tasks = [...checklist.tasks].sort((left, right) => {
+  const allTasks = [...checklist.tasks].sort((left, right) => {
     if (left.completed !== right.completed) return Number(left.completed) - Number(right.completed);
     return left.createdAt - right.createdAt;
   });
+  const tasks = state.taskSearchTerm
+    ? allTasks.filter((task) => matchesSearch(task.text, state.taskSearchTerm))
+    : allTasks;
 
   elements.taskList.replaceChildren();
-  elements.emptyTasks.hidden = tasks.length > 0;
+  elements.emptyTasks.hidden = allTasks.length > 0;
+  elements.noTaskResults.hidden = !(
+    allTasks.length > 0 &&
+    state.taskSearchTerm &&
+    tasks.length === 0
+  );
 
   tasks.forEach((task) => {
     const fragment = elements.taskTemplate.content.cloneNode(true);
@@ -247,15 +292,44 @@ function renderTasks(checklist) {
   updateProgress(checklist.tasks);
 }
 
+function handleChecklistSearch(event) {
+  state.checklistSearchTerm = normalizeSearch(event.target.value);
+  renderLibrary();
+}
+
+function handleTaskSearch(event) {
+  state.taskSearchTerm = normalizeSearch(event.target.value);
+  const checklist = getActiveChecklist();
+  if (checklist) renderTasks(checklist);
+}
+
+function openAddTaskModal() {
+  elements.addTaskForm.reset();
+  clearMessage(elements.addTaskError);
+  elements.addTaskModal.hidden = false;
+  updateModalBodyLock();
+  requestAnimationFrame(() => elements.newTaskInput.focus());
+}
+
+function closeAddTaskModal(restoreFocus = true) {
+  const wasOpen = !elements.addTaskModal.hidden;
+  elements.addTaskModal.hidden = true;
+  clearMessage(elements.addTaskError);
+  updateModalBodyLock();
+  if (wasOpen && restoreFocus && !elements.checklistView.hidden) {
+    requestAnimationFrame(() => elements.openAddTaskButton.focus());
+  }
+}
+
 function handleAddTask(event) {
   event.preventDefault();
   const checklist = getActiveChecklist();
-  const text = cleanText(elements.taskInput.value);
+  const text = cleanText(elements.newTaskInput.value);
 
   if (!checklist) return;
   if (!text) {
-    showMessage(elements.taskError, "Add a short description before saving this task.");
-    elements.taskInput.focus();
+    showMessage(elements.addTaskError, "Add a short description before saving this task.");
+    elements.newTaskInput.focus();
     return;
   }
 
@@ -271,10 +345,11 @@ function handleAddTask(event) {
   touchChecklist(checklist, now);
 
   if (!commitData()) return;
-  elements.taskInput.value = "";
-  clearMessage(elements.taskError);
+  state.taskSearchTerm = "";
+  elements.taskSearchInput.value = "";
+  closeAddTaskModal(false);
   renderActiveChecklist();
-  elements.taskInput.focus();
+  elements.taskSearchInput.focus();
 }
 
 function toggleTask(taskId) {
@@ -295,7 +370,7 @@ function openEditModal(task) {
   elements.editInput.value = task.text;
   clearMessage(elements.editError);
   elements.editModal.hidden = false;
-  document.body.style.overflow = "hidden";
+  updateModalBodyLock();
   requestAnimationFrame(() => {
     elements.editInput.focus();
     elements.editInput.select();
@@ -305,7 +380,12 @@ function openEditModal(task) {
 function closeEditModal() {
   state.editingTaskId = null;
   elements.editModal.hidden = true;
-  document.body.style.overflow = "";
+  updateModalBodyLock();
+}
+
+function updateModalBodyLock() {
+  document.body.style.overflow =
+    elements.addTaskModal.hidden && elements.editModal.hidden ? "" : "hidden";
 }
 
 function handleEditTask(event) {
@@ -563,6 +643,14 @@ function touchChecklist(checklist, timestamp = Date.now()) {
 
 function cleanText(value) {
   return String(value || "").trim().replace(/\s+/g, " ");
+}
+
+function normalizeSearch(value) {
+  return cleanText(value).toLocaleLowerCase();
+}
+
+function matchesSearch(value, searchTerm) {
+  return String(value || "").toLocaleLowerCase().includes(searchTerm);
 }
 
 function createId(prefix) {

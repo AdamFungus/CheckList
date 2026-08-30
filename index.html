@@ -79,7 +79,19 @@
               </div>
               <span id="saved-list-count" class="count-badge">0</span>
             </div>
+            <div class="search-field library-search">
+              <span class="search-icon" aria-hidden="true"></span>
+              <label class="sr-only" for="checklist-search-input">Search checklists</label>
+              <input
+                id="checklist-search-input"
+                type="search"
+                maxlength="60"
+                autocomplete="off"
+                placeholder="Search checklists…"
+              />
+            </div>
             <p id="empty-library" class="small-empty">Your first checklist will appear here.</p>
+            <p id="no-checklist-results" class="small-empty search-empty-message" hidden>No checklists match that search.</p>
             <ul id="saved-list-grid" class="saved-list-grid" aria-live="polite"></ul>
           </div>
           <p class="privacy-note"><span aria-hidden="true">●</span> No account or internet needed. Everything stays in this browser.</p>
@@ -112,17 +124,32 @@
               <span id="progress-fill"></span>
             </div>
 
-            <form id="task-form" class="task-form" novalidate>
-              <label class="sr-only" for="task-input">Add something to do</label>
-              <input id="task-input" name="task" maxlength="180" autocomplete="off" placeholder="Add something to do…" />
-              <button class="primary-button add-button" type="submit"><span aria-hidden="true">＋</span> Add</button>
-            </form>
-            <p id="task-error" class="form-message error-message" aria-live="polite"></p>
+            <div class="task-toolbar">
+              <div class="search-field task-search">
+                <span class="search-icon" aria-hidden="true"></span>
+                <label class="sr-only" for="task-search-input">Search tasks</label>
+                <input
+                  id="task-search-input"
+                  type="search"
+                  maxlength="180"
+                  autocomplete="off"
+                  placeholder="Search tasks…"
+                />
+              </div>
+              <button id="open-add-task-button" class="primary-button add-button" type="button" aria-haspopup="dialog">
+                <span aria-hidden="true">＋</span> Add
+              </button>
+            </div>
 
             <div id="empty-tasks" class="empty-state">
               <span aria-hidden="true">✦</span>
               <h3>Your list is ready</h3>
               <p>Add the first task and give this list some momentum.</p>
+            </div>
+            <div id="no-task-results" class="empty-state search-empty-state" hidden>
+              <span aria-hidden="true">⌕</span>
+              <h3>No matching tasks</h3>
+              <p>Try another search or clear the search bar.</p>
             </div>
             <ul id="task-list" class="task-list" aria-live="polite"></ul>
           </section>
@@ -149,6 +176,27 @@
         </div>
       </section>
     </main>
+
+    <div id="add-task-modal" class="modal-backdrop" hidden>
+      <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="add-task-title">
+        <div class="modal-heading">
+          <div>
+            <p class="step-label">New task</p>
+            <h2 id="add-task-title">What needs doing?</h2>
+          </div>
+          <button id="close-add-task-modal-button" class="icon-button" type="button" aria-label="Close add task dialog">×</button>
+        </div>
+        <form id="add-task-form" novalidate>
+          <label for="new-task-input">Task</label>
+          <input id="new-task-input" name="task" maxlength="180" autocomplete="off" placeholder="Book dentist appointment" />
+          <p id="add-task-error" class="form-message error-message" aria-live="polite"></p>
+          <div class="modal-actions">
+            <button id="cancel-add-task-button" class="secondary-button" type="button">Cancel</button>
+            <button class="primary-button" type="submit">Add task</button>
+          </div>
+        </form>
+      </section>
+    </div>
 
     <div id="edit-modal" class="modal-backdrop" hidden>
       <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-title">
