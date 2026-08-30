@@ -94,7 +94,7 @@
             <p id="no-checklist-results" class="small-empty search-empty-message" hidden>No checklists match that search.</p>
             <ul id="saved-list-grid" class="saved-list-grid" aria-live="polite"></ul>
           </div>
-          <p class="privacy-note"><span aria-hidden="true">●</span> Lists and Checky Lite stay in this browser on your device.</p>
+          <p class="privacy-note"><span aria-hidden="true">●</span> Lists stay in this browser. Checky’s model runs on your device.</p>
         </div>
       </section>
 
@@ -103,7 +103,7 @@
           <div>
             <p class="eyebrow">Personal checklist</p>
             <h1 id="checklist-title">Checklist name</h1>
-            <p class="signed-in-as">Saved in this browser. Checky Lite works here on your device too.</p>
+            <p class="signed-in-as">Saved in this browser. Checky processes requests on your device.</p>
           </div>
           <div class="checklist-actions">
             <button id="back-to-lists-button" class="secondary-button" type="button">All checklists</button>
@@ -189,7 +189,7 @@
       </span>
       <span class="checky-launcher-copy">
         <strong>Ask Checky</strong>
-        <small>Free offline helper</small>
+        <small>On-device AI helper</small>
       </span>
     </button>
 
@@ -200,13 +200,34 @@
         </span>
         <div>
           <div class="checky-title-row">
-            <h2 id="checky-title">Checky Lite</h2>
-            <span class="checky-ai-label">LOCAL</span>
+            <h2 id="checky-title">Checky</h2>
+            <span class="checky-ai-label">LOCAL AI</span>
           </div>
           <p>Your private checklist sidekick</p>
         </div>
         <button id="close-checky-button" class="icon-button checky-close-button" type="button" aria-label="Close Checky">×</button>
       </header>
+
+      <div id="checky-model-card" class="checky-model-card" data-state="idle" aria-live="polite">
+        <div class="checky-model-copy">
+          <strong id="checky-model-title">Local AI not started</strong>
+          <span id="checky-model-detail">SmolLM2 360M · first use downloads about 210 MB</span>
+        </div>
+        <button id="load-checky-model-button" type="button">Start local AI</button>
+        <div
+          id="checky-model-progress"
+          class="checky-model-progress"
+          role="progressbar"
+          aria-label="Local AI model loading progress"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+          aria-hidden="true"
+          hidden
+        >
+          <span id="checky-model-progress-fill"></span>
+        </div>
+      </div>
 
       <div id="checky-messages" class="checky-messages" aria-live="polite" aria-label="Conversation with Checky"></div>
 
@@ -228,7 +249,7 @@
           <button id="checky-send-button" class="checky-send-button" type="submit" aria-label="Send message to Checky">↑</button>
         </div>
         <p id="checky-status" class="checky-status" role="status"></p>
-        <p class="checky-disclosure">Runs on this device with no API key, account, or internet connection.</p>
+        <p class="checky-disclosure">First use downloads an open-source model. Messages stay on this device.</p>
       </form>
     </section>
 

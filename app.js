@@ -1,102 +1,32 @@
 const STORAGE_KEY = "myChecklists.data.v1";
-const CHECKY_HISTORY_KEY = "myChecklists.checkyLite.v1";
+const CHECKY_HISTORY_KEY = "myChecklists.checky.localModel.v1";
 const STORE_VERSION = 1;
 const MAX_ACTIVITY_ITEMS = 50;
+const CHECKY_MODEL_ID = "SmolLM2-360M-Instruct-q4f32_1-MLC";
+const CHECKY_WEBLLM_URL = "https://esm.run/@mlc-ai/web-llm@0.2.84";
 const CHECKY_INTRO =
-  "Hi, I’m Checky Lite! I work right here on your device. I can create lists from my built-in templates, add tasks, and explain how the app works.";
+  "Hi, I’m Checky! Start my local AI model below, then I can answer questions, create new checklists, and add tasks for you.";
+const CHECKY_SYSTEM_PROMPT = `You are Checky, a warm and concise rabbit assistant inside the My Checklists website.
 
-const CHECKY_TEMPLATES = [
-  {
-    name: "Kitchen Essentials",
-    aliases: ["kitchen essentials", "kitchen basics", "new kitchen"],
-    tasks: [
-      "Chef’s knife", "Cutting board", "Spatula", "Wooden spoon", "Can opener",
-      "Measuring cups and spoons", "Mixing bowls", "Frying pan", "Saucepan",
-      "Baking sheet", "Colander", "Plates and bowls", "Cups and mugs",
-      "Forks, knives, and spoons", "Dish soap and sponge", "Kitchen towels",
-      "Food storage containers",
-    ],
-  },
-  {
-    name: "Travel Packing",
-    aliases: ["travel packing", "packing list", "vacation packing", "trip packing", "travel essentials"],
-    tasks: [
-      "Photo ID or passport", "Wallet", "Phone and charger", "Travel confirmations",
-      "Medication", "Toiletries", "Underwear and socks", "Sleepwear", "Everyday outfits",
-      "Comfortable shoes", "Weather-appropriate layer", "Reusable water bottle", "Headphones",
-    ],
-  },
-  {
-    name: "Groceries",
-    aliases: ["grocery list", "groceries", "grocery basics", "food shopping"],
-    tasks: [
-      "Fresh fruit", "Fresh vegetables", "Bread", "Milk or dairy alternative", "Eggs",
-      "Rice or pasta", "Protein", "Breakfast food", "Snacks", "Coffee or tea",
-      "Cooking oil", "Pantry staples",
-    ],
-  },
-  {
-    name: "Home Cleaning",
-    aliases: ["cleaning list", "home cleaning", "house cleaning", "cleaning routine", "chores"],
-    tasks: [
-      "Put away clutter", "Dust surfaces", "Wipe counters", "Clean mirrors", "Scrub sinks",
-      "Clean the toilet", "Vacuum floors", "Mop hard floors", "Take out trash",
-      "Change bed sheets", "Wash towels",
-    ],
-  },
-  {
-    name: "Moving Day",
-    aliases: ["moving list", "moving checklist", "moving day", "move house", "moving essentials"],
-    tasks: [
-      "Book movers or a rental truck", "Collect boxes and packing tape", "Label boxes by room",
-      "Pack nonessential items", "Set aside important documents", "Update your address",
-      "Transfer utilities", "Pack an overnight bag", "Clean the old place",
-      "Photograph meter readings", "Keep keys accessible",
-    ],
-  },
-  {
-    name: "School Supplies",
-    aliases: ["school supplies", "school essentials", "back to school", "college supplies"],
-    tasks: [
-      "Backpack", "Notebooks", "Pens and pencils", "Highlighters", "Folders", "Planner",
-      "Calculator", "Laptop or tablet charger", "Reusable water bottle", "Lunch container",
-    ],
-  },
-  {
-    name: "Gym Bag",
-    aliases: ["gym bag", "gym essentials", "workout essentials", "workout list"],
-    tasks: [
-      "Workout clothes", "Training shoes", "Water bottle", "Small towel", "Headphones",
-      "Lock", "Toiletries", "Clean change of clothes", "Post-workout snack",
-    ],
-  },
-  {
-    name: "Morning Routine",
-    aliases: ["morning routine", "morning checklist", "start my day"],
-    tasks: [
-      "Drink water", "Make the bed", "Wash up and get dressed", "Eat breakfast",
-      "Check today’s schedule", "Choose top priorities", "Pack daily essentials", "Leave on time",
-    ],
-  },
-  {
-    name: "Bathroom Essentials",
-    aliases: ["bathroom essentials", "bathroom basics", "new bathroom"],
-    tasks: [
-      "Bath towels", "Hand towels", "Toilet paper", "Hand soap", "Shampoo and conditioner",
-      "Body wash", "Toothbrush and toothpaste", "Plunger", "Toilet brush", "Bath mat",
-      "Trash can", "Cleaning spray",
-    ],
-  },
-  {
-    name: "First Apartment",
-    aliases: ["first apartment", "new apartment", "apartment essentials", "first home"],
-    tasks: [
-      "Basic cookware", "Dishes and utensils", "Bed linens and pillows", "Bath towels",
-      "Cleaning supplies", "Trash bags", "Laundry detergent", "First-aid kit", "Tool kit",
-      "Power strip", "Flashlight", "Important contact numbers",
-    ],
-  },
-];
+The website creates and manages multiple personal checklists. It can search checklists and tasks, add, edit, delete, complete, and reopen tasks, show progress, and show recent activity. Checklist data and chat history are stored in this browser on the current device and do not sync automatically.
+
+Return one JSON object only. It must have this shape:
+{"reply":"short helpful response","actions":[]}
+
+Allowed actions:
+1. Create or fill a checklist:
+{"type":"create_checklist","checklist_name":"name","checklist_id":"","tasks":["task"]}
+2. Add tasks to an existing checklist:
+{"type":"add_tasks","checklist_name":"exact name","checklist_id":"exact id","tasks":["task"]}
+
+Rules:
+- Answer questions about this website in reply and use an empty actions array.
+- When asked for a new list, create a practical checklist with a concise name and 5 to 25 specific tasks.
+- When asked to add tasks, use the exact checklist name and id from the supplied context.
+- Never delete, rename, complete, or reopen anything. Explain that the person must do those actions manually.
+- Never claim an action happened unless you include that action in actions.
+- Keep task text short. Do not include duplicates, numbering, markdown, or commentary in task strings.
+- Keep reply under 80 words.`;
 
 const elements = {
   brand: document.querySelector(".brand"),
@@ -145,6 +75,12 @@ const elements = {
   checkyLauncher: document.querySelector("#checky-launcher"),
   checkyPanel: document.querySelector("#checky-panel"),
   closeCheckyButton: document.querySelector("#close-checky-button"),
+  checkyModelCard: document.querySelector("#checky-model-card"),
+  checkyModelTitle: document.querySelector("#checky-model-title"),
+  checkyModelDetail: document.querySelector("#checky-model-detail"),
+  checkyModelProgress: document.querySelector("#checky-model-progress"),
+  checkyModelProgressFill: document.querySelector("#checky-model-progress-fill"),
+  loadCheckyModelButton: document.querySelector("#load-checky-model-button"),
   checkyMessages: document.querySelector("#checky-messages"),
   checkyPrompts: document.querySelector("#checky-prompts"),
   checkyPromptButtons: [...document.querySelectorAll("[data-checky-prompt]")],
@@ -162,6 +98,12 @@ const state = {
   taskSearchTerm: "",
   checkyMessages: loadCheckyHistory(),
   checkyBusy: false,
+  checkyEngine: null,
+  checkyWorker: null,
+  checkyModelLoadPromise: null,
+  checkyModelStatus: "idle",
+  checkyModelProgress: 0,
+  checkyModelError: "",
 };
 
 bindInterface();
@@ -194,6 +136,7 @@ function bindInterface() {
   });
   elements.checkyLauncher.addEventListener("click", openChecky);
   elements.closeCheckyButton.addEventListener("click", closeChecky);
+  elements.loadCheckyModelButton.addEventListener("click", handleLoadCheckyModel);
   elements.checkyForm.addEventListener("submit", handleCheckySubmit);
   elements.checkyInput.addEventListener("input", resizeCheckyInput);
   elements.checkyInput.addEventListener("keydown", (event) => {
@@ -437,7 +380,13 @@ function openChecky() {
   elements.checkyLauncher.setAttribute("aria-expanded", "true");
   clearMessage(elements.checkyStatus);
   renderCheckyConversation();
-  requestAnimationFrame(() => elements.checkyInput.focus());
+  requestAnimationFrame(() => {
+    if (state.checkyModelStatus === "ready") {
+      elements.checkyInput.focus();
+    } else if (!elements.loadCheckyModelButton.hidden) {
+      elements.loadCheckyModelButton.focus();
+    }
+  });
 }
 
 function closeChecky() {
@@ -459,9 +408,14 @@ function renderCheckyConversation() {
 
   if (state.checkyBusy) elements.checkyMessages.append(createCheckyTypingElement());
 
+  const modelReady = state.checkyModelStatus === "ready";
   elements.checkyPrompts.hidden = state.checkyMessages.length > 0;
-  elements.checkyInput.disabled = state.checkyBusy;
-  elements.checkySendButton.disabled = state.checkyBusy;
+  elements.checkyPromptButtons.forEach((button) => {
+    button.disabled = state.checkyBusy || !modelReady;
+  });
+  elements.checkyInput.disabled = state.checkyBusy || !modelReady;
+  elements.checkySendButton.disabled = state.checkyBusy || !modelReady;
+  updateCheckyModelUI();
   requestAnimationFrame(() => {
     elements.checkyMessages.scrollTop = elements.checkyMessages.scrollHeight;
   });
@@ -535,6 +489,12 @@ async function handleCheckySubmit(event) {
   event.preventDefault();
   if (state.checkyBusy) return;
 
+  if (state.checkyModelStatus !== "ready") {
+    showMessage(elements.checkyStatus, "Start Checky’s local AI model before sending a message.");
+    elements.loadCheckyModelButton.focus();
+    return;
+  }
+
   const message = cleanText(elements.checkyInput.value);
   if (!message) {
     showMessage(elements.checkyStatus, "Type a message for Checky first.");
@@ -549,184 +509,221 @@ async function handleCheckySubmit(event) {
   state.checkyBusy = true;
   renderCheckyConversation();
 
-  const response = await requestChecky(message);
-  const actionResult = applyCheckyActions(response.actions);
-  appendCheckyMessage(
-    "assistant",
-    response.reply || "Done — I’ve updated your checklists.",
-    actionResult.note,
-  );
-  state.checkyBusy = false;
-  renderCheckyConversation();
-  if (!elements.checkyPanel.hidden) elements.checkyInput.focus();
+  try {
+    const response = await requestChecky(message);
+    const actionResult = applyCheckyActions(response.actions);
+    appendCheckyMessage(
+      "assistant",
+      response.reply || "Done — I’ve updated your checklists.",
+      actionResult.note,
+    );
+  } catch (error) {
+    appendCheckyMessage(
+      "assistant",
+      "I hit a problem while running the model on this device. Your checklists were not changed. Please try again.",
+    );
+    console.error("Checky local model request failed", error);
+  } finally {
+    state.checkyBusy = false;
+    renderCheckyConversation();
+    if (!elements.checkyPanel.hidden) elements.checkyInput.focus();
+  }
+}
+
+async function handleLoadCheckyModel() {
+  clearMessage(elements.checkyStatus);
+  try {
+    await ensureCheckyModel();
+    showToast("Checky’s local AI is ready.", "success");
+    if (!elements.checkyPanel.hidden) elements.checkyInput.focus();
+  } catch (error) {
+    const message = error?.code === "webgpu_unavailable"
+      ? "This browser does not support the WebGPU feature needed by Checky’s local model."
+      : "Checky could not start the local model. Check your connection and available device storage, then try again.";
+    showMessage(elements.checkyStatus, message);
+    console.error("Checky local model failed to load", error);
+  }
+}
+
+async function ensureCheckyModel() {
+  if (state.checkyEngine) return state.checkyEngine;
+  if (state.checkyModelLoadPromise) return state.checkyModelLoadPromise;
+
+  if (!("gpu" in navigator)) {
+    const error = new Error("WebGPU is unavailable in this browser.");
+    error.code = "webgpu_unavailable";
+    state.checkyModelStatus = "unsupported";
+    state.checkyModelError = error.message;
+    updateCheckyModelUI();
+    throw error;
+  }
+
+  state.checkyModelStatus = "loading";
+  state.checkyModelProgress = 0;
+  state.checkyModelError = "";
+  updateCheckyModelUI();
+
+  state.checkyModelLoadPromise = (async () => {
+    try {
+      const webllm = await import(CHECKY_WEBLLM_URL);
+      state.checkyWorker = new Worker("checky-worker.js", { type: "module" });
+      state.checkyEngine = await webllm.CreateWebWorkerMLCEngine(
+        state.checkyWorker,
+        CHECKY_MODEL_ID,
+        {
+          initProgressCallback: (report) => {
+            state.checkyModelProgress = Number.isFinite(report?.progress)
+              ? Math.max(0, Math.min(1, report.progress))
+              : state.checkyModelProgress;
+            updateCheckyModelUI();
+          },
+        },
+      );
+      state.checkyModelStatus = "ready";
+      state.checkyModelProgress = 1;
+      updateCheckyModelUI();
+      return state.checkyEngine;
+    } catch (error) {
+      if (state.checkyWorker) state.checkyWorker.terminate();
+      state.checkyWorker = null;
+      state.checkyEngine = null;
+      state.checkyModelStatus = "error";
+      state.checkyModelError = cleanText(error?.message).slice(0, 140);
+      updateCheckyModelUI();
+      throw error;
+    } finally {
+      state.checkyModelLoadPromise = null;
+    }
+  })();
+
+  return state.checkyModelLoadPromise;
+}
+
+function updateCheckyModelUI() {
+  const status = state.checkyModelStatus;
+  const progressPercent = Math.round(state.checkyModelProgress * 100);
+  elements.checkyModelCard.dataset.state = status;
+  elements.checkyModelProgress.hidden = status !== "loading";
+  elements.checkyModelProgress.setAttribute("aria-hidden", status === "loading" ? "false" : "true");
+  elements.checkyModelProgress.setAttribute("aria-valuenow", String(progressPercent));
+  elements.checkyModelProgressFill.style.width = `${progressPercent}%`;
+  elements.loadCheckyModelButton.hidden = status === "ready" || status === "unsupported";
+  elements.loadCheckyModelButton.disabled = status === "loading";
+
+  if (status === "loading") {
+    elements.checkyModelTitle.textContent = "Starting Checky’s local AI…";
+    elements.checkyModelDetail.textContent = progressPercent > 0
+      ? `Downloading and preparing the model · ${progressPercent}%`
+      : "Connecting and preparing the model…";
+    elements.loadCheckyModelButton.textContent = "Loading…";
+    return;
+  }
+  if (status === "ready") {
+    elements.checkyModelTitle.textContent = "Local AI ready";
+    elements.checkyModelDetail.textContent = "SmolLM2 360M is running privately on this device";
+    return;
+  }
+  if (status === "unsupported") {
+    elements.checkyModelTitle.textContent = "Local AI is not supported here";
+    elements.checkyModelDetail.textContent = "Checky needs a browser and device with WebGPU support";
+    return;
+  }
+  if (status === "error") {
+    elements.checkyModelTitle.textContent = "Local AI couldn’t start";
+    elements.checkyModelDetail.textContent = state.checkyModelError
+      ? `Try again · ${state.checkyModelError}`
+      : "Check your connection and available device storage, then try again";
+    elements.loadCheckyModelButton.textContent = "Try again";
+    return;
+  }
+
+  elements.checkyModelTitle.textContent = "Local AI not started";
+  elements.checkyModelDetail.textContent = "SmolLM2 360M · first use downloads about 210 MB";
+  elements.loadCheckyModelButton.textContent = "Start local AI";
 }
 
 async function requestChecky(message) {
-  await new Promise((resolve) => setTimeout(resolve, 260));
-  return buildLocalCheckyResponse(message);
+  if (!state.checkyEngine) {
+    const error = new Error("The local model is not ready.");
+    error.code = "model_not_ready";
+    throw error;
+  }
+
+  const history = state.checkyMessages
+    .slice(0, -1)
+    .slice(-4)
+    .map(({ role, text }) => ({
+      role: role === "assistant" ? "assistant" : "user",
+      content: cleanText(text).slice(0, 500),
+    }));
+  const completion = await state.checkyEngine.chat.completions.create({
+    messages: [
+      { role: "system", content: CHECKY_SYSTEM_PROMPT },
+      ...history,
+      {
+        role: "user",
+        content: `Request: ${message}\n\nCurrent app context:\n${JSON.stringify(buildCheckyContext())}`,
+      },
+    ],
+    temperature: 0.2,
+    top_p: 0.9,
+    max_tokens: 900,
+    response_format: { type: "json_object" },
+  });
+
+  const content = completion?.choices?.[0]?.message?.content;
+  return parseCheckyModelResponse(content);
 }
 
-function buildLocalCheckyResponse(message) {
-  const normalizedMessage = normalizeSearch(message);
-  const template = CHECKY_TEMPLATES.find((item) =>
-    item.aliases.some((alias) => normalizedMessage.includes(normalizeSearch(alias))),
-  );
-
-  const taskRequest = parseCheckyTaskRequest(message);
-  if (taskRequest) return taskRequest;
-
-  if (template && isCheckyListRequest(normalizedMessage)) {
-    return {
-      reply: `I found my built-in ${template.name} template and prepared it for you.`,
-      actions: [{
-        type: "create_checklist",
-        checklist_name: template.name,
-        checklist_id: "",
-        tasks: template.tasks,
-      }],
-    };
-  }
-
-  const requestedChecklistName = extractCheckyChecklistName(message);
-  if (requestedChecklistName) {
-    return {
-      reply: `I prepared “${requestedChecklistName}.” Tell me what you want to add to it.`,
-      actions: [{
-        type: "create_checklist",
-        checklist_name: requestedChecklistName,
-        checklist_id: "",
-        tasks: [],
-      }],
-    };
-  }
-
-  if (/\b(hello|hi|hey|good morning|good afternoon|good evening)\b/.test(normalizedMessage)) {
-    return checkyReply("Hi! I’m ready to help with your checklists. Ask what I can do, request one of my templates, or tell me to add tasks to an existing list.");
-  }
-
-  if (/\b(what can you do|help|commands|templates|ideas)\b/.test(normalizedMessage)) {
-    return checkyReply(
-      "I can create kitchen, packing, grocery, cleaning, moving, school, gym, morning routine, bathroom, and first-apartment lists. I can also add tasks to one of your lists and explain how this website works.",
-    );
-  }
-
-  if (/\b(save|saving|saved|storage|store|privacy|private|data|sync|offline|internet)\b/.test(normalizedMessage)) {
-    return checkyReply(
-      "Your lists and our chat are saved in this browser on this device. Nothing is sent to an AI service, and Checky Lite works offline. Your data does not automatically sync to another phone, browser, or computer.",
-    );
-  }
-
-  if (/\b(search|find|filter)\b/.test(normalizedMessage)) {
-    return checkyReply(
-      "Use the search box under Your checklists to find a list. Inside a checklist, use the task search box to filter its tasks.",
-    );
-  }
-
-  if (/\b(delete|remove|erase)\b/.test(normalizedMessage)) {
-    return checkyReply(
-      "Open a checklist and use Delete checklist to remove the whole list. To remove one task, use the delete control beside that task. The app asks you to confirm before deleting.",
-    );
-  }
-
-  if (/\b(add task|new task|create task)\b/.test(normalizedMessage)) {
-    return checkyReply(
-      "Open a checklist and select Add beside the task search box. You can also tell me something like “add milk and eggs to my Groceries list.”",
-    );
-  }
-
-  if (/\b(create|new|make|start).*(checklist|list)\b|\b(checklist|list).*(create|new|make|start)\b/.test(normalizedMessage)) {
-    return checkyReply(
-      "Name a list in the Create a checklist box, or tell me “create a checklist called Weekend.” I can fill it automatically when it matches one of my built-in templates.",
-    );
-  }
-
-  if (/\b(phone|home screen|install|app)\b/.test(normalizedMessage)) {
-    return checkyReply(
-      "Open the published website in your phone’s browser, then choose Add to Home Screen from the browser menu. Your phone keeps its own local copy of the checklists you create there.",
-    );
-  }
-
-  return checkyReply(
-    "I’m a free local helper, so I don’t answer unlimited general questions like ChatGPT. I can manage your checklists, explain this website, or make one of my built-in templates. Ask “what can you do?” to see the options.",
-  );
-}
-
-function checkyReply(reply, actions = []) {
-  return { reply, actions };
-}
-
-function isCheckyListRequest(normalizedMessage) {
-  return /\b(create|make|build|give|start|set up|plan|need|want|prepare)\b/.test(normalizedMessage)
-    || /\b(list|checklist|essentials)\b/.test(normalizedMessage);
-}
-
-function parseCheckyTaskRequest(message) {
-  const prefixMatch = message.match(/^\s*(?:please\s+)?(?:add|put|include)\s+(.+)$/i);
-  if (!prefixMatch) return null;
-
-  let taskText = prefixMatch[1].trim().replace(/[.!?]+$/, "");
-  let requestedListName = "";
-  const destinationMatches = [...taskText.matchAll(/\s+(?:to|onto|into)\s+(?:my\s+|the\s+)?/gi)];
-  const destination = destinationMatches.at(-1);
-  if (destination) {
-    requestedListName = taskText
-      .slice((destination.index || 0) + destination[0].length)
-      .replace(/\s+(?:list|checklist)\s*$/i, "")
-      .replace(/^["“”']+|["“”']+$/g, "")
-      .trim();
-    taskText = taskText.slice(0, destination.index).trim();
-  }
-
-  taskText = taskText.replace(/^(?:the\s+)?(?:tasks?|items?)\s+/i, "").trim();
-  const tasks = taskText
-    .split(/\s*(?:,|;|\n|\band\b)\s*/i)
-    .map((task) => cleanText(task).replace(/^[-–—•\d.)\s]+/, "").slice(0, 180))
-    .filter(Boolean)
-    .slice(0, 20);
-
-  if (tasks.length === 0) return checkyReply("Tell me which task or tasks you want to add.");
-
-  const checklist = findChecklistForChecky(requestedListName);
-  if (!checklist) {
-    const detail = requestedListName ? ` I couldn’t find a list named “${requestedListName}.”` : "";
-    return checkyReply(`${detail} Open a checklist first or include its name, like “add milk to my Groceries list.”`.trim());
-  }
-
+function buildCheckyContext() {
   return {
-    reply: `I’ll add ${tasks.length === 1 ? `“${tasks[0]}”` : `${tasks.length} tasks`} to ${checklist.name}.`,
-    actions: [{
-      type: "add_tasks",
-      checklist_name: checklist.name,
-      checklist_id: checklist.id,
-      tasks,
-    }],
+    currentView: elements.checklistView.hidden ? "checklist-library" : "open-checklist",
+    activeChecklistId: state.activeChecklistId || "",
+    checklists: sortedChecklists()
+      .slice(0, 8)
+      .map((checklist) => ({
+        id: checklist.id,
+        name: checklist.name,
+        taskCount: checklist.tasks.length,
+        incompleteCount: checklist.tasks.filter((task) => !task.completed).length,
+        tasks: checklist.tasks
+          .slice(0, checklist.id === state.activeChecklistId ? 20 : 3)
+          .map((task) => ({ text: task.text.slice(0, 100), completed: task.completed })),
+      })),
   };
 }
 
-function findChecklistForChecky(requestedName) {
-  if (!requestedName) {
-    return getActiveChecklist() || (state.data.checklists.length === 1 ? state.data.checklists[0] : null);
+function parseCheckyModelResponse(content) {
+  const text = cleanText(content);
+  if (!text) throw new Error("The local model returned an empty response.");
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch (error) {
+    const objectStart = text.indexOf("{");
+    const objectEnd = text.lastIndexOf("}");
+    if (objectStart < 0 || objectEnd <= objectStart) throw error;
+    parsed = JSON.parse(text.slice(objectStart, objectEnd + 1));
   }
 
-  const normalizedName = normalizeSearch(requestedName);
-  return state.data.checklists.find((checklist) => normalizeSearch(checklist.name) === normalizedName)
-    || state.data.checklists.find((checklist) => {
-      const checklistName = normalizeSearch(checklist.name);
-      return checklistName.includes(normalizedName) || normalizedName.includes(checklistName);
-    })
-    || null;
-}
-
-function extractCheckyChecklistName(message) {
-  const calledMatch = message.match(/\b(?:called|named)\s+["“']?([^"”'.!?]{1,60})/i);
-  if (calledMatch) return cleanText(calledMatch[1]).slice(0, 60);
-
-  const leadingNameMatch = message.match(
-    /^\s*(?:please\s+)?(?:create|make|start|set up)\s+(?:a\s+|an\s+|my\s+|the\s+)?(.+?)\s+(?:list|checklist)\s*[.!?]*$/i,
-  );
-  if (leadingNameMatch) return cleanText(leadingNameMatch[1]).slice(0, 60);
-
-  return "";
+  const actions = Array.isArray(parsed?.actions) ? parsed.actions : [];
+  return {
+    reply: cleanText(parsed?.reply).slice(0, 1200) || "Here’s what I prepared.",
+    actions: actions
+      .filter((action) => action?.type === "create_checklist" || action?.type === "add_tasks")
+      .slice(0, 3)
+      .map((action) => ({
+        type: action.type,
+        checklist_name: cleanText(action.checklist_name).slice(0, 60),
+        checklist_id: cleanText(action.checklist_id).slice(0, 120),
+        tasks: [...new Set(
+          (Array.isArray(action.tasks) ? action.tasks : [])
+            .map((task) => cleanText(task).slice(0, 180))
+            .filter(Boolean),
+        )].slice(0, 40),
+      })),
+  };
 }
 
 function applyCheckyActions(actions) {
@@ -814,7 +811,7 @@ function applyCheckyActions(actions) {
     ? `${tasksAdded === 1 ? "added 1 task" : `added ${tasksAdded} tasks`}`
     : "";
   const note = [listPart, taskPart].filter(Boolean).join(" and ");
-  showToast(`${note || "Checklist updated"} with Checky Lite.`, "success");
+  showToast(`${note || "Checklist updated"} with Checky.`, "success");
   return { note };
 }
 
