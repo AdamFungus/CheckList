@@ -20,6 +20,7 @@
     <meta name="twitter:description" content="Every list. One calm place." />
     <meta name="twitter:image" content="https://adamfungus.github.io/CheckList/og.png" />
     <meta name="theme-color" content="#fffaf3" />
+    <meta name="checky-api-url" content="/api/checky" />
     <title>My Checklists</title>
     <link rel="stylesheet" href="style.css" />
   </head>
@@ -94,7 +95,7 @@
             <p id="no-checklist-results" class="small-empty search-empty-message" hidden>No checklists match that search.</p>
             <ul id="saved-list-grid" class="saved-list-grid" aria-live="polite"></ul>
           </div>
-          <p class="privacy-note"><span aria-hidden="true">●</span> No account or internet needed. Everything stays in this browser.</p>
+          <p class="privacy-note"><span aria-hidden="true">●</span> Lists stay in this browser. Checky only sends context when you ask for AI help.</p>
         </div>
       </section>
 
@@ -103,7 +104,7 @@
           <div>
             <p class="eyebrow">Personal checklist</p>
             <h1 id="checklist-title">Checklist name</h1>
-            <p class="signed-in-as">Saved privately in this browser.</p>
+            <p class="signed-in-as">Saved in this browser and shared with Checky only when you ask.</p>
           </div>
           <div class="checklist-actions">
             <button id="back-to-lists-button" class="secondary-button" type="button">All checklists</button>
@@ -176,6 +177,61 @@
         </div>
       </section>
     </main>
+
+    <button
+      id="checky-launcher"
+      class="checky-launcher"
+      type="button"
+      aria-controls="checky-panel"
+      aria-expanded="false"
+    >
+      <span class="checky-launcher-avatar" aria-hidden="true">
+        <img src="assets/checky.png" alt="" />
+      </span>
+      <span class="checky-launcher-copy">
+        <strong>Ask Checky</strong>
+        <small>AI checklist helper</small>
+      </span>
+    </button>
+
+    <section id="checky-panel" class="checky-panel" aria-labelledby="checky-title" hidden>
+      <header class="checky-header">
+        <span class="checky-header-avatar" aria-hidden="true">
+          <img src="assets/checky.png" alt="" />
+        </span>
+        <div>
+          <div class="checky-title-row">
+            <h2 id="checky-title">Checky</h2>
+            <span class="checky-ai-label">AI</span>
+          </div>
+          <p>Your helpful checklist sidekick</p>
+        </div>
+        <button id="close-checky-button" class="icon-button checky-close-button" type="button" aria-label="Close Checky">×</button>
+      </header>
+
+      <div id="checky-messages" class="checky-messages" aria-live="polite" aria-label="Conversation with Checky"></div>
+
+      <div id="checky-prompts" class="checky-prompts" aria-label="Try asking Checky">
+        <button type="button" data-checky-prompt="Give me a checklist of kitchen essentials.">Kitchen essentials</button>
+        <button type="button" data-checky-prompt="How does this website save my checklists?">How saving works</button>
+      </div>
+
+      <form id="checky-form" class="checky-form">
+        <label class="sr-only" for="checky-input">Message Checky</label>
+        <div class="checky-compose-row">
+          <textarea
+            id="checky-input"
+            name="message"
+            rows="1"
+            maxlength="800"
+            placeholder="Ask for a list or website help…"
+          ></textarea>
+          <button id="checky-send-button" class="checky-send-button" type="submit" aria-label="Send message to Checky">↑</button>
+        </div>
+        <p id="checky-status" class="checky-status" role="status"></p>
+        <p class="checky-disclosure">Your message and limited checklist context are sent securely to OpenAI.</p>
+      </form>
+    </section>
 
     <div id="add-task-modal" class="modal-backdrop" hidden>
       <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="add-task-title">

@@ -979,7 +979,7 @@ form input:focus,
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: 70;
   display: grid;
   place-items: center;
   padding: 20px;
@@ -1022,7 +1022,7 @@ form input:focus,
   position: fixed;
   right: 18px;
   bottom: 18px;
-  z-index: 50;
+  z-index: 80;
   display: grid;
   gap: 10px;
   pointer-events: none;
@@ -1048,6 +1048,338 @@ form input:focus,
 .toast.success {
   color: #0f5f37;
   background: var(--mint);
+}
+
+.checky-launcher {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 64px;
+  padding: 8px 18px 8px 8px;
+  border: 1px solid var(--plum-dark);
+  border-radius: 23px;
+  color: white;
+  background: var(--plum);
+  box-shadow: 0 15px 38px rgba(50, 27, 55, 0.28);
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.checky-launcher:hover {
+  background: #64366b;
+  box-shadow: 0 18px 44px rgba(50, 27, 55, 0.34);
+  transform: translateY(-2px);
+}
+
+.checky-launcher:focus-visible,
+.checky-prompts button:focus-visible,
+.checky-send-button:focus-visible,
+.checky-form textarea:focus-visible {
+  outline: 3px solid rgba(243, 139, 125, 0.45);
+  outline-offset: 3px;
+}
+
+.checky-launcher-avatar,
+.checky-header-avatar,
+.checky-message-avatar {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #fffaf6;
+}
+
+.checky-launcher-avatar {
+  width: 48px;
+  height: 48px;
+}
+
+.checky-launcher-avatar img,
+.checky-header-avatar img,
+.checky-message-avatar img {
+  width: 92%;
+  height: 92%;
+  object-fit: contain;
+  transform: translateY(3%);
+}
+
+.checky-launcher-copy {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+.checky-launcher-copy strong {
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+.checky-launcher-copy small {
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.checky-panel {
+  position: fixed;
+  right: 20px;
+  bottom: 96px;
+  z-index: 45;
+  width: min(400px, calc(100vw - 40px));
+  height: min(620px, calc(100dvh - 126px));
+  overflow: hidden;
+  border: 1px solid rgba(88, 48, 94, 0.16);
+  border-radius: 28px;
+  background: var(--paper-strong);
+  box-shadow: 0 30px 80px rgba(42, 22, 47, 0.28);
+}
+
+.checky-panel:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  animation: checky-open 190ms ease-out;
+}
+
+.checky-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 17px;
+  border-bottom: 1px solid rgba(88, 48, 94, 0.09);
+  background: linear-gradient(135deg, #fff2d4 0%, #f7e8f5 100%);
+}
+
+.checky-header-avatar {
+  width: 48px;
+  height: 48px;
+  border: 2px solid rgba(88, 48, 94, 0.12);
+}
+
+.checky-title-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.checky-title-row h2 {
+  margin: 0;
+  font-family: "Arial Rounded MT Bold", "Trebuchet MS", ui-sans-serif, sans-serif;
+  font-size: 20px;
+  letter-spacing: -0.03em;
+}
+
+.checky-ai-label {
+  padding: 3px 6px;
+  border-radius: 99px;
+  color: var(--plum);
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.checky-header p {
+  margin: 3px 0 0;
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+
+.checky-close-button {
+  width: 40px;
+  padding: 0;
+  font-size: 24px;
+}
+
+.checky-messages {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 19px 17px 12px;
+  scroll-behavior: smooth;
+}
+
+.checky-message {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.checky-message.user {
+  justify-content: flex-end;
+}
+
+.checky-message-avatar {
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(88, 48, 94, 0.1);
+  background: #f8ebe7;
+}
+
+.checky-message-bubble {
+  max-width: 82%;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 16px 16px 16px 5px;
+  color: var(--ink);
+  background: white;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.checky-message.user .checky-message-bubble {
+  border-color: var(--plum);
+  border-radius: 16px 16px 5px 16px;
+  color: white;
+  background: var(--plum);
+}
+
+.checky-action-note {
+  display: block;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(88, 48, 94, 0.11);
+  color: var(--mint-dark);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.checky-typing .checky-message-bubble {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 54px;
+}
+
+.checky-typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #9e8e9c;
+  animation: checky-bounce 900ms infinite ease-in-out;
+}
+
+.checky-typing-dot:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.checky-typing-dot:nth-child(3) {
+  animation-delay: 240ms;
+}
+
+.checky-prompts {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 4px 17px 12px;
+  scrollbar-width: none;
+}
+
+.checky-prompts::-webkit-scrollbar {
+  display: none;
+}
+
+.checky-prompts button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid #decfe1;
+  border-radius: 99px;
+  color: var(--plum);
+  background: #faf4fb;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.checky-prompts button:hover {
+  border-color: var(--plum);
+  background: #f3e8f5;
+}
+
+.checky-form {
+  padding: 13px 15px 12px;
+  border-top: 1px solid var(--line);
+  background: #fffdf9;
+}
+
+.checky-compose-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.checky-form textarea {
+  width: 100%;
+  min-height: 46px;
+  max-height: 116px;
+  resize: none;
+  padding: 12px 13px;
+  border: 1px solid #dcd2ca;
+  border-radius: 14px;
+  color: var(--ink);
+  background: white;
+  line-height: 1.4;
+}
+
+.checky-form textarea:focus {
+  border-color: var(--plum);
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(88, 48, 94, 0.09);
+}
+
+.checky-send-button {
+  width: 46px;
+  height: 46px;
+  border: 1px solid var(--plum-dark);
+  border-radius: 14px;
+  color: white;
+  background: var(--plum);
+  font-size: 22px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.checky-send-button:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
+
+.checky-status {
+  min-height: 0;
+  margin: 5px 2px 0;
+  color: var(--danger);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.checky-status:empty {
+  display: none;
+}
+
+.checky-disclosure {
+  margin: 7px 2px 0;
+  color: #948892;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+@keyframes checky-open {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes checky-bounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-4px); }
 }
 
 @keyframes toast-in {
@@ -1218,6 +1550,39 @@ form input:focus,
   .modal-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
+  }
+
+  .checky-launcher {
+    right: 14px;
+    bottom: 14px;
+    min-height: 58px;
+    padding: 6px 14px 6px 6px;
+  }
+
+  .checky-launcher-avatar {
+    width: 44px;
+    height: 44px;
+  }
+
+  .checky-panel {
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: min(88dvh, 720px);
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 25px 25px 0 0;
+  }
+
+  .checky-messages {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .checky-prompts {
+    padding-right: 14px;
+    padding-left: 14px;
   }
 
 }

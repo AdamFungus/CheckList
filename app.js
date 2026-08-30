@@ -1,6 +1,11 @@
 const STORAGE_KEY = "myChecklists.data.v1";
+const CHECKY_HISTORY_KEY = "myChecklists.checky.v1";
 const STORE_VERSION = 1;
 const MAX_ACTIVITY_ITEMS = 50;
+const CHECKY_ENDPOINT =
+  document.querySelector('meta[name="checky-api-url"]')?.content?.trim() || "/api/checky";
+const CHECKY_INTRO =
+  "Hi, I’m Checky! I can answer questions about the app, create a new checklist, or add tasks to one you already have.";
 
 const elements = {
   brand: document.querySelector(".brand"),
@@ -46,6 +51,16 @@ const elements = {
   closeModalButton: document.querySelector("#close-modal-button"),
   cancelEditButton: document.querySelector("#cancel-edit-button"),
   toastRegion: document.querySelector("#toast-region"),
+  checkyLauncher: document.querySelector("#checky-launcher"),
+  checkyPanel: document.querySelector("#checky-panel"),
+  closeCheckyButton: document.querySelector("#close-checky-button"),
+  checkyMessages: document.querySelector("#checky-messages"),
+  checkyPrompts: document.querySelector("#checky-prompts"),
+  checkyPromptButtons: [...document.querySelectorAll("[data-checky-prompt]")],
+  checkyForm: document.querySelector("#checky-form"),
+  checkyInput: document.querySelector("#checky-input"),
+  checkySendButton: document.querySelector("#checky-send-button"),
+  checkyStatus: document.querySelector("#checky-status"),
 };
 
 const state = {
@@ -54,10 +69,13 @@ const state = {
   editingTaskId: null,
   checklistSearchTerm: "",
   taskSearchTerm: "",
+  checkyMessages: loadCheckyHistory(),
+  checkyBusy: false,
 };
 
 bindInterface();
 restoreLastView();
+renderCheckyConversation();
 
 function bindInterface() {
   elements.brand.addEventListener("click", (event) => {
@@ -83,12 +101,31 @@ function bindInterface() {
   elements.editModal.addEventListener("click", (event) => {
     if (event.target === elements.editModal) closeEditModal();
   });
+  elements.checkyLauncher.addEventListener("click", openChecky);
+  elements.closeCheckyButton.addEventListener("click", closeChecky);
+  elements.checkyForm.addEventListener("submit", handleCheckySubmit);
+  elements.checkyInput.addEventListener("input", resizeCheckyInput);
+  elements.checkyInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      elements.checkyForm.requestSubmit();
+    }
+  });
+  elements.checkyPromptButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      elements.checkyInput.value = button.dataset.checkyPrompt || "";
+      resizeCheckyInput();
+      elements.checkyForm.requestSubmit();
+    });
+  });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     if (!elements.addTaskModal.hidden) {
       closeAddTaskModal();
     } else if (!elements.editModal.hidden) {
       closeEditModal();
+    } else if (!elements.checkyPanel.hidden) {
+      closeChecky();
     }
   });
   window.addEventListener("storage", handleStorageChange);
@@ -301,6 +338,289 @@ function handleTaskSearch(event) {
   state.taskSearchTerm = normalizeSearch(event.target.value);
   const checklist = getActiveChecklist();
   if (checklist) renderTasks(checklist);
+}
+
+function openChecky() {
+  elements.checkyPanel.hidden = false;
+  elements.checkyLauncher.hidden = true;
+  elements.checkyLauncher.setAttribute("aria-expanded", "true");
+  clearMessage(elements.checkyStatus);
+  renderCheckyConversation();
+  requestAnimationFrame(() => elements.checkyInput.focus());
+}
+
+function closeChecky() {
+  const wasOpen = !elements.checkyPanel.hidden;
+  elements.checkyPanel.hidden = true;
+  elements.checkyLauncher.hidden = false;
+  elements.checkyLauncher.setAttribute("aria-expanded", "false");
+  if (wasOpen) requestAnimationFrame(() => elements.checkyLauncher.focus());
+}
+
+function renderCheckyConversation() {
+  elements.checkyMessages.replaceChildren();
+  elements.checkyMessages.append(createCheckyMessageElement("assistant", CHECKY_INTRO));
+  state.checkyMessages.forEach((message) => {
+    elements.checkyMessages.append(
+      createCheckyMessageElement(message.role, message.text, message.actionText),
+    );
+  });
+
+  if (state.checkyBusy) elements.checkyMessages.append(createCheckyTypingElement());
+
+  elements.checkyPrompts.hidden = state.checkyMessages.length > 0;
+  elements.checkyInput.disabled = state.checkyBusy;
+  elements.checkySendButton.disabled = state.checkyBusy;
+  requestAnimationFrame(() => {
+    elements.checkyMessages.scrollTop = elements.checkyMessages.scrollHeight;
+  });
+}
+
+function createCheckyMessageElement(role, text, actionText = "") {
+  const row = document.createElement("div");
+  row.className = `checky-message ${role === "user" ? "user" : "assistant"}`;
+
+  if (role !== "user") {
+    const avatar = document.createElement("span");
+    avatar.className = "checky-message-avatar";
+    avatar.setAttribute("aria-hidden", "true");
+    const image = document.createElement("img");
+    image.src = "assets/checky.png";
+    image.alt = "";
+    avatar.append(image);
+    row.append(avatar);
+  }
+
+  const bubble = document.createElement("div");
+  bubble.className = "checky-message-bubble";
+  bubble.textContent = text;
+  if (actionText) {
+    const note = document.createElement("span");
+    note.className = "checky-action-note";
+    note.textContent = `✓ ${actionText}`;
+    bubble.append(note);
+  }
+  row.append(bubble);
+  return row;
+}
+
+function createCheckyTypingElement() {
+  const row = document.createElement("div");
+  row.className = "checky-message assistant checky-typing";
+  row.setAttribute("aria-label", "Checky is thinking");
+
+  const avatar = document.createElement("span");
+  avatar.className = "checky-message-avatar";
+  avatar.setAttribute("aria-hidden", "true");
+  const image = document.createElement("img");
+  image.src = "assets/checky.png";
+  image.alt = "";
+  avatar.append(image);
+
+  const bubble = document.createElement("div");
+  bubble.className = "checky-message-bubble";
+  for (let index = 0; index < 3; index += 1) {
+    const dot = document.createElement("span");
+    dot.className = "checky-typing-dot";
+    bubble.append(dot);
+  }
+  row.append(avatar, bubble);
+  return row;
+}
+
+function appendCheckyMessage(role, text, actionText = "") {
+  const message = {
+    role: role === "user" ? "user" : "assistant",
+    text: cleanText(text),
+    actionText: cleanText(actionText),
+  };
+  if (!message.text) return;
+  state.checkyMessages.push(message);
+  state.checkyMessages = state.checkyMessages.slice(-18);
+  saveCheckyHistory();
+}
+
+async function handleCheckySubmit(event) {
+  event.preventDefault();
+  if (state.checkyBusy) return;
+
+  const message = cleanText(elements.checkyInput.value);
+  if (!message) {
+    showMessage(elements.checkyStatus, "Type a message for Checky first.");
+    elements.checkyInput.focus();
+    return;
+  }
+
+  clearMessage(elements.checkyStatus);
+  elements.checkyInput.value = "";
+  resizeCheckyInput();
+  appendCheckyMessage("user", message);
+  state.checkyBusy = true;
+  renderCheckyConversation();
+
+  try {
+    const response = await requestChecky(message);
+    const actionResult = applyCheckyActions(response.actions);
+    appendCheckyMessage(
+      "assistant",
+      response.reply || "Done — I’ve updated your checklists.",
+      actionResult.note,
+    );
+  } catch (error) {
+    const setupMissing = error.status === 404 || error.code === "missing_openai_key";
+    const reply = setupMissing
+      ? "My chat window is ready, but my secure AI connection still needs to be turned on for this copy of the site."
+      : "I couldn’t reach my AI connection just now. Your saved checklists were not changed, so please try again in a moment.";
+    appendCheckyMessage("assistant", reply);
+    console.error("Checky request failed", error);
+  } finally {
+    state.checkyBusy = false;
+    renderCheckyConversation();
+    if (!elements.checkyPanel.hidden) elements.checkyInput.focus();
+  }
+}
+
+async function requestChecky(message) {
+  const response = await fetch(CHECKY_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message,
+      history: state.checkyMessages
+        .slice(0, -1)
+        .slice(-10)
+        .map(({ role, text }) => ({ role, text })),
+      context: buildCheckyContext(),
+    }),
+  });
+
+  let payload = {};
+  try {
+    payload = await response.json();
+  } catch (error) {
+    console.warn("Checky returned a non-JSON response", error);
+  }
+
+  if (!response.ok) {
+    const error = new Error(payload.error || `Checky request failed with ${response.status}`);
+    error.status = response.status;
+    error.code = payload.code || "request_failed";
+    throw error;
+  }
+
+  return {
+    reply: cleanText(payload.reply),
+    actions: Array.isArray(payload.actions) ? payload.actions : [],
+  };
+}
+
+function buildCheckyContext() {
+  return {
+    currentView: elements.checklistView.hidden ? "checklist-library" : "open-checklist",
+    activeChecklistId: state.activeChecklistId || "",
+    checklists: sortedChecklists()
+      .slice(0, 24)
+      .map((checklist) => ({
+        id: checklist.id,
+        name: checklist.name,
+        taskCount: checklist.tasks.length,
+        incompleteCount: checklist.tasks.filter((task) => !task.completed).length,
+        tasks: checklist.tasks
+          .slice(0, checklist.id === state.activeChecklistId ? 40 : 10)
+          .map((task) => ({ text: task.text.slice(0, 180), completed: task.completed })),
+      })),
+  };
+}
+
+function applyCheckyActions(actions) {
+  if (!Array.isArray(actions) || actions.length === 0) return { note: "" };
+
+  let listsCreated = 0;
+  let tasksAdded = 0;
+  let affectedChecklist = null;
+  let dataChanged = false;
+
+  actions.slice(0, 3).forEach((action) => {
+    if (!action || !["create_checklist", "add_tasks"].includes(action.type)) return;
+
+    const requestedName = cleanText(action.checklist_name).slice(0, 60);
+    const requestedId = cleanText(action.checklist_id);
+    let checklist = requestedId ? findChecklist(requestedId) : null;
+    if (!checklist && requestedName) {
+      const normalizedName = normalizeSearch(requestedName);
+      checklist = state.data.checklists.find(
+        (item) => normalizeSearch(item.name) === normalizedName,
+      );
+    }
+
+    if (!checklist && action.type === "create_checklist" && requestedName) {
+      const now = Date.now();
+      checklist = {
+        id: createId("list"),
+        name: requestedName,
+        createdAt: now,
+        updatedAt: now,
+        tasks: [],
+        activity: [createActivity("created-list", "", now)],
+      };
+      state.data.checklists.unshift(checklist);
+      listsCreated += 1;
+      dataChanged = true;
+    }
+
+    if (!checklist) return;
+
+    const existingTasks = new Set(checklist.tasks.map((task) => normalizeSearch(task.text)));
+    const taskTexts = [...new Set(
+      (Array.isArray(action.tasks) ? action.tasks : [])
+        .map((task) => cleanText(task).slice(0, 180))
+        .filter(Boolean),
+    )].slice(0, 40);
+
+    taskTexts.forEach((text) => {
+      const normalizedText = normalizeSearch(text);
+      if (existingTasks.has(normalizedText)) return;
+      const now = Date.now();
+      checklist.tasks.push({
+        id: createId("task"),
+        text,
+        completed: false,
+        createdAt: now,
+        completedAt: null,
+      });
+      addActivity(checklist, "added", text, now);
+      touchChecklist(checklist, now);
+      existingTasks.add(normalizedText);
+      tasksAdded += 1;
+      dataChanged = true;
+    });
+
+    affectedChecklist = checklist;
+  });
+
+  if (!dataChanged || !affectedChecklist) {
+    return { note: "No new items were needed" };
+  }
+
+  state.activeChecklistId = affectedChecklist.id;
+  state.data.activeChecklistId = affectedChecklist.id;
+  if (!commitData()) return { note: "The changes could not be saved" };
+
+  openChecklist(affectedChecklist.id, false);
+  const listPart = listsCreated
+    ? `${listsCreated === 1 ? "Created a checklist" : `Created ${listsCreated} checklists`}`
+    : "";
+  const taskPart = tasksAdded
+    ? `${tasksAdded === 1 ? "added 1 task" : `added ${tasksAdded} tasks`}`
+    : "";
+  const note = [listPart, taskPart].filter(Boolean).join(" and ");
+  showToast(`${note || "Checklist updated"} with Checky.`, "success");
+  return { note };
+}
+
+function resizeCheckyInput() {
+  elements.checkyInput.style.height = "auto";
+  elements.checkyInput.style.height = `${Math.min(elements.checkyInput.scrollHeight, 116)}px`;
 }
 
 function openAddTaskModal() {
@@ -546,6 +866,33 @@ function handleStorageChange(event) {
     renderActiveChecklist();
   } else {
     showLibrary(false, false);
+  }
+}
+
+function loadCheckyHistory() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(CHECKY_HISTORY_KEY));
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((message) => message?.role === "user" || message?.role === "assistant")
+      .map((message) => ({
+        role: message.role,
+        text: cleanText(message.text).slice(0, 1200),
+        actionText: cleanText(message.actionText).slice(0, 160),
+      }))
+      .filter((message) => message.text)
+      .slice(-18);
+  } catch (error) {
+    console.warn("Checky chat history could not be read", error);
+    return [];
+  }
+}
+
+function saveCheckyHistory() {
+  try {
+    localStorage.setItem(CHECKY_HISTORY_KEY, JSON.stringify(state.checkyMessages));
+  } catch (error) {
+    console.warn("Checky chat history could not be saved", error);
   }
 }
 
