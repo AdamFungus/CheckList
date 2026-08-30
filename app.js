@@ -1,24 +1,21 @@
-import { isFirebaseConfigured } from "./firebase-config.js";
-
-const SESSION_KEY = "partyChecklist.session.v1";
+const STORAGE_KEY = "myChecklists.data.v1";
+const STORE_VERSION = 1;
+const MAX_ACTIVITY_ITEMS = 50;
 
 const elements = {
-  modeTabs: document.querySelectorAll("[data-mode]"),
-  createPanel: document.querySelector("#create-panel"),
-  joinPanel: document.querySelector("#join-panel"),
-  createForm: document.querySelector("#create-form"),
-  joinForm: document.querySelector("#join-form"),
-  createError: document.querySelector("#create-error"),
-  joinError: document.querySelector("#join-error"),
+  brand: document.querySelector(".brand"),
   welcomeView: document.querySelector("#welcome-view"),
   checklistView: document.querySelector("#checklist-view"),
-  connectionStatus: document.querySelector("#connection-status"),
-  statusLabel: document.querySelector("#connection-status .status-label"),
-  partyTitle: document.querySelector("#party-title"),
-  currentUserName: document.querySelector("#current-user-name"),
-  partyCode: document.querySelector("#party-code"),
-  copyCodeButton: document.querySelector("#copy-code-button"),
-  leaveButton: document.querySelector("#leave-button"),
+  createForm: document.querySelector("#create-checklist-form"),
+  checklistNameInput: document.querySelector("#checklist-name"),
+  createError: document.querySelector("#create-error"),
+  savedListCount: document.querySelector("#saved-list-count"),
+  savedListGrid: document.querySelector("#saved-list-grid"),
+  emptyLibrary: document.querySelector("#empty-library"),
+  checklistTitle: document.querySelector("#checklist-title"),
+  backToListsButton: document.querySelector("#back-to-lists-button"),
+  deleteChecklistButton: document.querySelector("#delete-checklist-button"),
+  newChecklistButton: document.querySelector("#new-checklist-button"),
   taskForm: document.querySelector("#task-form"),
   taskInput: document.querySelector("#task-input"),
   taskError: document.querySelector("#task-error"),
@@ -30,10 +27,10 @@ const elements = {
   progressPercent: document.querySelector("#progress-percent"),
   progressTrack: document.querySelector(".progress-track"),
   progressFill: document.querySelector("#progress-fill"),
-  memberCount: document.querySelector("#member-count"),
-  memberList: document.querySelector("#member-list"),
-  emptyActivity: document.querySelector("#empty-activity"),
+  checklistCount: document.querySelector("#checklist-count"),
+  checklistSwitcher: document.querySelector("#checklist-switcher"),
   activityList: document.querySelector("#activity-list"),
+  emptyActivity: document.querySelector("#empty-activity"),
   editModal: document.querySelector("#edit-modal"),
   editForm: document.querySelector("#edit-form"),
   editInput: document.querySelector("#edit-task-input"),
@@ -44,61 +41,24 @@ const elements = {
 };
 
 const state = {
-  firebase: null,
-  userId: "",
-  partyId: "",
-  displayName: "",
-  tasks: [],
+  data: loadData(),
+  activeChecklistId: null,
   editingTaskId: null,
-  unsubscribeParty: null,
 };
 
 bindInterface();
-startApp();
-
-async function startApp() {
-  if (!isFirebaseConfigured()) {
-    setConnectionStatus("setup", "Setup needed");
-    return;
-  }
-
-  setConnectionStatus("connecting", "Connecting…");
-  try {
-    state.firebase = await import("./firebase-service.js");
-    const firebaseUser = await state.firebase.initializeFirebase((connected) => {
-      setConnectionStatus(
-        connected ? "connected" : "connecting",
-        connected ? "Connected" : "Reconnecting…",
-      );
-    });
-    state.userId = firebaseUser.uid;
-
-    const savedSession = readSession();
-    if (savedSession) {
-      const restored = await state.firebase.restorePartySession(savedSession);
-      if (restored) enterParty(restored);
-      else clearSession();
-    }
-  } catch (error) {
-    console.error("Firebase initialization failed", error);
-    setConnectionStatus("error", "Connection error");
-    showToast("Could not connect to Firebase. Check your configuration and try again.", "error");
-  }
-}
+restoreLastView();
 
 function bindInterface() {
-  elements.modeTabs.forEach((tab) => {
-    tab.addEventListener("click", () => setMode(tab.dataset.mode));
+  elements.brand.addEventListener("click", (event) => {
+    event.preventDefault();
+    showLibrary();
   });
-  document.querySelectorAll("[data-password-toggle]").forEach((button) => {
-    button.addEventListener("click", () => togglePassword(button));
-  });
-
-  elements.createForm.addEventListener("submit", handleCreateParty);
-  elements.joinForm.addEventListener("submit", handleJoinParty);
+  elements.createForm.addEventListener("submit", handleCreateChecklist);
+  elements.backToListsButton.addEventListener("click", () => showLibrary());
+  elements.newChecklistButton.addEventListener("click", () => showLibrary(true));
+  elements.deleteChecklistButton.addEventListener("click", () => deleteChecklist(state.activeChecklistId));
   elements.taskForm.addEventListener("submit", handleAddTask);
-  elements.copyCodeButton.addEventListener("click", copyPartyId);
-  elements.leaveButton.addEventListener("click", handleLeaveParty);
   elements.editForm.addEventListener("submit", handleEditTask);
   elements.closeModalButton.addEventListener("click", closeEditModal);
   elements.cancelEditButton.addEventListener("click", closeEditModal);
@@ -108,143 +68,157 @@ function bindInterface() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !elements.editModal.hidden) closeEditModal();
   });
+  window.addEventListener("storage", handleStorageChange);
 }
 
-async function handleCreateParty(event) {
+function restoreLastView() {
+  const lastActiveId = state.data.activeChecklistId;
+  if (lastActiveId && findChecklist(lastActiveId)) {
+    openChecklist(lastActiveId, false);
+    return;
+  }
+  showLibrary(false, false);
+}
+
+function handleCreateChecklist(event) {
   event.preventDefault();
+  const name = cleanText(elements.checklistNameInput.value);
+
+  if (!name) {
+    showMessage(elements.createError, "Give your checklist a name.");
+    elements.checklistNameInput.focus();
+    return;
+  }
+
+  const now = Date.now();
+  const checklist = {
+    id: createId("list"),
+    name,
+    createdAt: now,
+    updatedAt: now,
+    tasks: [],
+    activity: [createActivity("created-list", "", now)],
+  };
+
+  state.data.checklists.unshift(checklist);
+  state.data.activeChecklistId = checklist.id;
+  if (!commitData()) return;
+
+  elements.createForm.reset();
   clearMessage(elements.createError);
-  if (!requireFirebase(elements.createError)) return;
-
-  const formData = new FormData(elements.createForm);
-  const partyName = cleanText(formData.get("partyName"));
-  const displayName = cleanText(formData.get("displayName"));
-  const password = String(formData.get("password") || "");
-  const validationError = validatePartyForm({ partyName, displayName, password });
-
-  if (validationError) {
-    showMessage(elements.createError, validationError);
-    return;
-  }
-
-  const submitButton = elements.createForm.querySelector("button[type='submit']");
-  setButtonBusy(submitButton, true, "Creating…");
-  try {
-    const session = await state.firebase.createParty({ partyName, displayName, password });
-    writeSession(session);
-    elements.createForm.reset();
-    enterParty(session);
-    showToast("Party created — share the Party ID with your crew.", "success");
-  } catch (error) {
-    handleFormError(error, elements.createError, "We could not create the party. Please try again.");
-  } finally {
-    setButtonBusy(submitButton, false, "Create party", true);
-  }
+  openChecklist(checklist.id, false);
+  showToast("Checklist created and saved on this device.", "success");
 }
 
-async function handleJoinParty(event) {
-  event.preventDefault();
-  clearMessage(elements.joinError);
-  if (!requireFirebase(elements.joinError)) return;
-
-  const formData = new FormData(elements.joinForm);
-  const partyId = normalizePartyId(formData.get("partyId"));
-  const displayName = cleanText(formData.get("displayName"));
-  const password = String(formData.get("password") || "");
-
-  if (!partyId) {
-    showMessage(elements.joinError, "Enter the Party ID your friend shared with you.");
-    return;
-  }
-  if (!displayName) {
-    showMessage(elements.joinError, "Enter the name your friends will see.");
-    return;
-  }
-  if (!password) {
-    showMessage(elements.joinError, "Enter the party password.");
+function openChecklist(checklistId, persist = true) {
+  const checklist = findChecklist(checklistId);
+  if (!checklist) {
+    showLibrary();
     return;
   }
 
-  const submitButton = elements.joinForm.querySelector("button[type='submit']");
-  setButtonBusy(submitButton, true, "Joining…");
-  try {
-    const session = await state.firebase.joinParty({ partyId, displayName, password });
-    writeSession(session);
-    elements.joinForm.reset();
-    enterParty(session);
-    showToast("You’re in! This checklist is now live.", "success");
-  } catch (error) {
-    handleFormError(error, elements.joinError, "We could not join that party. Please try again.");
-  } finally {
-    setButtonBusy(submitButton, false, "Join party", true);
-  }
-}
+  state.activeChecklistId = checklist.id;
+  state.data.activeChecklistId = checklist.id;
+  if (persist) saveData();
 
-function enterParty({ partyId, displayName }) {
-  state.unsubscribeParty?.();
-  state.partyId = partyId;
-  state.displayName = displayName;
-  state.tasks = [];
-
-  elements.partyCode.textContent = partyId;
-  elements.currentUserName.textContent = displayName;
   elements.welcomeView.hidden = true;
   elements.checklistView.hidden = false;
-  renderTasks({});
-  renderMembers({});
-  renderActivity({});
-
-  state.unsubscribeParty = state.firebase.subscribeToParty(partyId, {
-    onPartyName: (name) => {
-      elements.partyTitle.textContent = name;
-      document.title = `${name} · Party Checklist`;
-    },
-    onMembers: renderMembers,
-    onTasks: renderTasks,
-    onActivity: renderActivity,
-    onError: (error) => {
-      console.error("Realtime subscription failed", error);
-      showToast("The live connection was interrupted. We’ll keep trying.", "error");
-    },
-  });
-
+  renderActiveChecklist();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-async function handleAddTask(event) {
-  event.preventDefault();
-  clearMessage(elements.taskError);
-  const text = cleanText(elements.taskInput.value);
-  if (!text) {
-    showMessage(elements.taskError, "Add a short description before saving this task.");
-    elements.taskInput.focus();
+function showLibrary(focusName = false, persist = true) {
+  closeEditModal();
+  state.activeChecklistId = null;
+  state.data.activeChecklistId = null;
+  if (persist) saveData();
+  elements.checklistView.hidden = true;
+  elements.welcomeView.hidden = false;
+  document.title = "My Checklists";
+  renderLibrary();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  if (focusName) requestAnimationFrame(() => elements.checklistNameInput.focus());
+}
+
+function renderLibrary() {
+  const checklists = sortedChecklists();
+  elements.savedListCount.textContent = String(checklists.length);
+  elements.savedListGrid.replaceChildren();
+  elements.emptyLibrary.hidden = checklists.length > 0;
+
+  checklists.forEach((checklist) => {
+    const item = document.createElement("li");
+    item.className = "saved-list-card";
+
+    const openButton = document.createElement("button");
+    openButton.className = "saved-list-open";
+    openButton.type = "button";
+    openButton.setAttribute("aria-label", `Open ${checklist.name}`);
+
+    const heading = document.createElement("span");
+    heading.className = "saved-list-title-row";
+    const name = document.createElement("strong");
+    name.textContent = checklist.name;
+    const arrow = document.createElement("span");
+    arrow.className = "saved-list-arrow";
+    arrow.setAttribute("aria-hidden", "true");
+    arrow.textContent = "→";
+    heading.append(name, arrow);
+
+    const total = checklist.tasks.length;
+    const completed = checklist.tasks.filter((task) => task.completed).length;
+    const percent = total ? Math.round((completed / total) * 100) : 0;
+    const meta = document.createElement("span");
+    meta.className = "saved-list-meta";
+    meta.textContent = total
+      ? `${completed} of ${total} complete · Updated ${relativeTime(checklist.updatedAt).toLowerCase()}`
+      : "No tasks yet · Ready when you are";
+
+    const progress = document.createElement("span");
+    progress.className = "saved-list-progress";
+    const progressFill = document.createElement("span");
+    progressFill.style.width = `${percent}%`;
+    progress.append(progressFill);
+
+    openButton.append(heading, meta, progress);
+    openButton.addEventListener("click", () => openChecklist(checklist.id));
+
+    const deleteButton = document.createElement("button");
+    deleteButton.className = "icon-button danger saved-list-delete";
+    deleteButton.type = "button";
+    deleteButton.setAttribute("aria-label", `Delete ${checklist.name}`);
+    deleteButton.textContent = "Delete";
+    deleteButton.addEventListener("click", () => deleteChecklist(checklist.id));
+
+    item.append(openButton, deleteButton);
+    elements.savedListGrid.append(item);
+  });
+}
+
+function renderActiveChecklist() {
+  const checklist = getActiveChecklist();
+  if (!checklist) {
+    showLibrary();
     return;
   }
 
-  const submitButton = elements.taskForm.querySelector("button[type='submit']");
-  setButtonBusy(submitButton, true, "Adding…");
-  try {
-    await state.firebase.addTask(state.partyId, text, state.displayName);
-    elements.taskInput.value = "";
-    elements.taskInput.focus();
-  } catch (error) {
-    handleFormError(error, elements.taskError, "That task could not be added. Please try again.");
-  } finally {
-    setButtonBusy(submitButton, false, "Add");
-  }
+  elements.checklistTitle.textContent = checklist.name;
+  document.title = `${checklist.name} · My Checklists`;
+  renderTasks(checklist);
+  renderSwitcher();
+  renderActivity(checklist);
 }
 
-function renderTasks(taskMap) {
-  state.tasks = Object.entries(taskMap)
-    .map(([id, task]) => ({ ...task, id: task.id || id }))
-    .sort((left, right) => {
-      if (left.completed !== right.completed) return Number(left.completed) - Number(right.completed);
-      return numberOrMax(left.createdAt) - numberOrMax(right.createdAt);
-    });
+function renderTasks(checklist) {
+  const tasks = [...checklist.tasks].sort((left, right) => {
+    if (left.completed !== right.completed) return Number(left.completed) - Number(right.completed);
+    return left.createdAt - right.createdAt;
+  });
 
   elements.taskList.replaceChildren();
-  elements.emptyTasks.hidden = state.tasks.length > 0;
+  elements.emptyTasks.hidden = tasks.length > 0;
 
-  state.tasks.forEach((task) => {
+  tasks.forEach((task) => {
     const fragment = elements.taskTemplate.content.cloneNode(true);
     const item = fragment.querySelector(".task-item");
     const checkButton = fragment.querySelector(".task-check");
@@ -254,39 +228,66 @@ function renderTasks(taskMap) {
     const deleteButton = fragment.querySelector(".delete-task-button");
 
     item.dataset.taskId = task.id;
-    item.classList.toggle("completed", Boolean(task.completed));
+    item.classList.toggle("completed", task.completed);
     text.textContent = task.text;
-    meta.textContent = task.completed && task.completedByName
-      ? `Completed by ${task.completedByName}`
-      : `Added by ${task.createdByName || "a party member"}`;
+    meta.textContent = task.completed
+      ? `Completed ${formatDate(task.completedAt)}`
+      : `Added ${formatDate(task.createdAt)}`;
     checkButton.setAttribute(
       "aria-label",
       task.completed ? `Reopen ${task.text}` : `Complete ${task.text}`,
     );
-
-    checkButton.addEventListener("click", () => toggleTask(task, checkButton));
+    checkButton.addEventListener("click", () => toggleTask(task.id));
     editButton.addEventListener("click", () => openEditModal(task));
-    deleteButton.addEventListener("click", () => confirmDeleteTask(task, deleteButton));
+    deleteButton.addEventListener("click", () => deleteTask(task.id));
+
     elements.taskList.append(fragment);
   });
 
-  updateProgress();
+  updateProgress(checklist.tasks);
 }
 
-async function toggleTask(task, button) {
-  button.disabled = true;
-  try {
-    await state.firebase.setTaskCompleted(
-      state.partyId,
-      task,
-      !task.completed,
-      state.displayName,
-    );
-  } catch (error) {
-    showToast(readableError(error, "That task could not be updated."), "error");
-  } finally {
-    button.disabled = false;
+function handleAddTask(event) {
+  event.preventDefault();
+  const checklist = getActiveChecklist();
+  const text = cleanText(elements.taskInput.value);
+
+  if (!checklist) return;
+  if (!text) {
+    showMessage(elements.taskError, "Add a short description before saving this task.");
+    elements.taskInput.focus();
+    return;
   }
+
+  const now = Date.now();
+  checklist.tasks.push({
+    id: createId("task"),
+    text,
+    completed: false,
+    createdAt: now,
+    completedAt: null,
+  });
+  addActivity(checklist, "added", text, now);
+  touchChecklist(checklist, now);
+
+  if (!commitData()) return;
+  elements.taskInput.value = "";
+  clearMessage(elements.taskError);
+  renderActiveChecklist();
+  elements.taskInput.focus();
+}
+
+function toggleTask(taskId) {
+  const checklist = getActiveChecklist();
+  const task = checklist?.tasks.find((item) => item.id === taskId);
+  if (!checklist || !task) return;
+
+  const now = Date.now();
+  task.completed = !task.completed;
+  task.completedAt = task.completed ? now : null;
+  addActivity(checklist, task.completed ? "completed" : "reopened", task.text, now);
+  touchChecklist(checklist, now);
+  if (commitData()) renderActiveChecklist();
 }
 
 function openEditModal(task) {
@@ -307,12 +308,13 @@ function closeEditModal() {
   document.body.style.overflow = "";
 }
 
-async function handleEditTask(event) {
+function handleEditTask(event) {
   event.preventDefault();
-  const task = state.tasks.find((item) => item.id === state.editingTaskId);
+  const checklist = getActiveChecklist();
+  const task = checklist?.tasks.find((item) => item.id === state.editingTaskId);
   const text = cleanText(elements.editInput.value);
 
-  if (!task) {
+  if (!task || !checklist) {
     showMessage(elements.editError, "That task is no longer available.");
     return;
   }
@@ -325,72 +327,85 @@ async function handleEditTask(event) {
     return;
   }
 
-  const submitButton = elements.editForm.querySelector("button[type='submit']");
-  setButtonBusy(submitButton, true, "Saving…");
-  try {
-    await state.firebase.editTask(state.partyId, task, text, state.displayName);
-    closeEditModal();
-    showToast("Task updated.", "success");
-  } catch (error) {
-    handleFormError(error, elements.editError, "That edit could not be saved.");
-  } finally {
-    setButtonBusy(submitButton, false, "Save changes");
-  }
+  const now = Date.now();
+  task.text = text;
+  addActivity(checklist, "edited", text, now);
+  touchChecklist(checklist, now);
+  if (!commitData()) return;
+
+  closeEditModal();
+  renderActiveChecklist();
+  showToast("Task updated.", "success");
 }
 
-async function confirmDeleteTask(task, button) {
+function deleteTask(taskId) {
+  const checklist = getActiveChecklist();
+  const task = checklist?.tasks.find((item) => item.id === taskId);
+  if (!checklist || !task) return;
+
   const confirmed = window.confirm(`Delete “${task.text}”? This cannot be undone.`);
   if (!confirmed) return;
 
-  button.disabled = true;
-  try {
-    await state.firebase.deleteTask(state.partyId, task, state.displayName);
+  const now = Date.now();
+  checklist.tasks = checklist.tasks.filter((item) => item.id !== taskId);
+  addActivity(checklist, "deleted", task.text, now);
+  touchChecklist(checklist, now);
+  if (commitData()) {
+    renderActiveChecklist();
     showToast("Task deleted.");
-  } catch (error) {
-    showToast(readableError(error, "That task could not be deleted."), "error");
-    button.disabled = false;
   }
 }
 
-function updateProgress() {
-  const total = state.tasks.length;
-  const completed = state.tasks.filter((task) => task.completed).length;
-  const percent = total ? Math.round((completed / total) * 100) : 0;
+function deleteChecklist(checklistId) {
+  const checklist = findChecklist(checklistId);
+  if (!checklist) return;
+  const activeBeforeDelete = state.activeChecklistId;
 
-  elements.completedCount.textContent = String(completed);
-  elements.taskCount.textContent = String(total);
-  elements.progressPercent.textContent = `${percent}%`;
-  elements.progressFill.style.width = `${percent}%`;
-  elements.progressTrack.setAttribute("aria-valuenow", String(percent));
+  const confirmed = window.confirm(
+    `Delete “${checklist.name}” and all of its tasks? This cannot be undone.`,
+  );
+  if (!confirmed) return;
+
+  state.data.checklists = state.data.checklists.filter((item) => item.id !== checklistId);
+  if (state.data.activeChecklistId === checklistId) state.data.activeChecklistId = null;
+  if (state.activeChecklistId === checklistId) state.activeChecklistId = null;
+  if (!commitData()) {
+    state.activeChecklistId = activeBeforeDelete;
+    state.data.activeChecklistId = activeBeforeDelete;
+    return;
+  }
+
+  showLibrary(false, false);
+  showToast("Checklist deleted.");
 }
 
-function renderMembers(memberMap) {
-  const members = Object.entries(memberMap)
-    .map(([id, member]) => ({ ...member, id }))
-    .sort((left, right) => numberOrMax(left.joinedAt) - numberOrMax(right.joinedAt));
+function renderSwitcher() {
+  const checklists = sortedChecklists();
+  elements.checklistCount.textContent = String(checklists.length);
+  elements.checklistSwitcher.replaceChildren();
 
-  elements.memberCount.textContent = String(members.length);
-  elements.memberList.replaceChildren();
-
-  members.forEach((member) => {
+  checklists.forEach((checklist) => {
     const item = document.createElement("li");
-    item.className = "member-item";
-    const avatar = document.createElement("span");
-    avatar.className = "member-avatar";
-    avatar.setAttribute("aria-hidden", "true");
-    avatar.textContent = getInitials(member.name);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "switcher-button";
+    button.classList.toggle("active", checklist.id === state.activeChecklistId);
+    if (checklist.id === state.activeChecklistId) button.setAttribute("aria-current", "true");
+
     const name = document.createElement("span");
-    name.textContent = member.name;
-    if (member.id === state.userId) name.textContent += " (you)";
-    item.append(avatar, name);
-    elements.memberList.append(item);
+    name.textContent = checklist.name;
+    const count = document.createElement("small");
+    count.textContent = `${checklist.tasks.filter((task) => !task.completed).length} left`;
+    button.append(name, count);
+    button.addEventListener("click", () => openChecklist(checklist.id));
+    item.append(button);
+    elements.checklistSwitcher.append(item);
   });
 }
 
-function renderActivity(activityMap) {
-  const activities = Object.entries(activityMap)
-    .map(([id, activity]) => ({ ...activity, id }))
-    .sort((left, right) => (Number(right.timestamp) || 0) - (Number(left.timestamp) || 0))
+function renderActivity(checklist) {
+  const activities = [...checklist.activity]
+    .sort((left, right) => right.timestamp - left.timestamp)
     .slice(0, 25);
 
   elements.activityList.replaceChildren();
@@ -410,114 +425,179 @@ function renderActivity(activityMap) {
   });
 }
 
-async function copyPartyId() {
-  try {
-    await navigator.clipboard.writeText(state.partyId);
-    showToast("Party ID copied.", "success");
-  } catch {
-    showToast(`Party ID: ${state.partyId}`);
+function updateProgress(tasks) {
+  const total = tasks.length;
+  const completed = tasks.filter((task) => task.completed).length;
+  const percent = total ? Math.round((completed / total) * 100) : 0;
+
+  elements.completedCount.textContent = String(completed);
+  elements.taskCount.textContent = String(total);
+  elements.progressPercent.textContent = `${percent}%`;
+  elements.progressFill.style.width = `${percent}%`;
+  elements.progressTrack.setAttribute("aria-valuenow", String(percent));
+}
+
+function addActivity(checklist, type, taskText, timestamp = Date.now()) {
+  checklist.activity.unshift(createActivity(type, taskText, timestamp));
+  checklist.activity = checklist.activity.slice(0, MAX_ACTIVITY_ITEMS);
+}
+
+function createActivity(type, taskText, timestamp) {
+  return { id: createId("activity"), type, taskText, timestamp };
+}
+
+function activitySentence(activity) {
+  const task = activity.taskText ? `“${activity.taskText}”` : "";
+  const messages = {
+    "created-list": "Checklist created",
+    added: `Added ${task}`,
+    completed: `Completed ${task}`,
+    reopened: `Reopened ${task}`,
+    edited: `Edited ${task}`,
+    deleted: `Deleted ${task}`,
+  };
+  return messages[activity.type] || "Checklist updated";
+}
+
+function handleStorageChange(event) {
+  if (event.key !== STORAGE_KEY) return;
+  state.data = loadData();
+  if (state.activeChecklistId && findChecklist(state.activeChecklistId)) {
+    renderActiveChecklist();
+  } else {
+    showLibrary(false, false);
   }
 }
 
-async function handleLeaveParty() {
-  const confirmed = window.confirm("Leave this party on this device?");
-  if (!confirmed) return;
-
-  elements.leaveButton.disabled = true;
+function loadData() {
   try {
-    await state.firebase.leaveParty(state.partyId, state.displayName);
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (Array.isArray(parsed)) {
+      return { version: STORE_VERSION, activeChecklistId: null, checklists: parsed.map(normalizeChecklist) };
+    }
+    if (parsed && Array.isArray(parsed.checklists)) {
+      return {
+        version: STORE_VERSION,
+        activeChecklistId: typeof parsed.activeChecklistId === "string" ? parsed.activeChecklistId : null,
+        checklists: parsed.checklists.map(normalizeChecklist),
+      };
+    }
   } catch (error) {
-    console.warn("Could not remove member entry while leaving", error);
-  } finally {
-    state.unsubscribeParty?.();
-    state.unsubscribeParty = null;
-    state.partyId = "";
-    state.displayName = "";
-    state.tasks = [];
-    clearSession();
-    closeEditModal();
-    elements.checklistView.hidden = true;
-    elements.welcomeView.hidden = false;
-    elements.leaveButton.disabled = false;
-    document.title = "Party Checklist";
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    console.warn("Saved checklist data could not be read", error);
+  }
+  return { version: STORE_VERSION, activeChecklistId: null, checklists: [] };
+}
+
+function normalizeChecklist(checklist) {
+  const now = Date.now();
+  return {
+    id: typeof checklist?.id === "string" ? checklist.id : createId("list"),
+    name: cleanText(checklist?.name) || "Untitled checklist",
+    createdAt: toTimestamp(checklist?.createdAt, now),
+    updatedAt: toTimestamp(checklist?.updatedAt, now),
+    tasks: Array.isArray(checklist?.tasks) ? checklist.tasks.map(normalizeTask) : [],
+    activity: Array.isArray(checklist?.activity)
+      ? checklist.activity.map(normalizeActivity).slice(0, MAX_ACTIVITY_ITEMS)
+      : [],
+  };
+}
+
+function normalizeTask(task) {
+  return {
+    id: typeof task?.id === "string" ? task.id : createId("task"),
+    text: cleanText(task?.text) || "Untitled task",
+    completed: Boolean(task?.completed),
+    createdAt: toTimestamp(task?.createdAt, Date.now()),
+    completedAt: task?.completed ? toTimestamp(task?.completedAt, Date.now()) : null,
+  };
+}
+
+function normalizeActivity(activity) {
+  return {
+    id: typeof activity?.id === "string" ? activity.id : createId("activity"),
+    type: typeof activity?.type === "string" ? activity.type : "updated",
+    taskText: cleanText(activity?.taskText),
+    timestamp: toTimestamp(activity?.timestamp, Date.now()),
+  };
+}
+
+function saveData(silent = false) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
+    return true;
+  } catch (error) {
+    console.error("Checklist data could not be saved", error);
+    if (!silent) showToast("This browser could not save that change. Check its storage settings.", "error");
+    return false;
   }
 }
 
-function setMode(mode) {
-  elements.modeTabs.forEach((tab) => {
-    const isActive = tab.dataset.mode === mode;
-    tab.classList.toggle("active", isActive);
-    tab.setAttribute("aria-selected", String(isActive));
-  });
-  elements.createPanel.hidden = mode !== "create";
-  elements.joinPanel.hidden = mode !== "join";
-  (mode === "create" ? elements.createPanel : elements.joinPanel).querySelector("input")?.focus();
-}
+function commitData() {
+  if (saveData()) return true;
 
-function togglePassword(button) {
-  const input = document.querySelector(`#${button.dataset.passwordToggle}`);
-  const showPassword = input.type === "password";
-  input.type = showPassword ? "text" : "password";
-  button.textContent = showPassword ? "Hide" : "Show";
-  button.setAttribute("aria-label", `${showPassword ? "Hide" : "Show"} password`);
-}
-
-function requireFirebase(messageElement) {
-  if (state.firebase) return true;
-  showMessage(
-    messageElement,
-    isFirebaseConfigured()
-      ? "Firebase is still connecting. Try again in a moment."
-      : "Add your Firebase configuration first. The README walks you through it.",
-  );
+  const activeChecklistId = state.activeChecklistId;
+  state.data = loadData();
+  if (activeChecklistId && findChecklist(activeChecklistId)) {
+    state.activeChecklistId = activeChecklistId;
+  } else {
+    state.activeChecklistId = null;
+  }
   return false;
 }
 
-function validatePartyForm({ partyName, displayName, password }) {
-  if (!partyName) return "Give your party a name.";
-  if (!displayName) return "Enter the name your friends will see.";
-  if (!password) return "Create a password for this party.";
-  if (password.length < 6) return "Use at least 6 characters for the party password.";
-  return "";
+function getActiveChecklist() {
+  return findChecklist(state.activeChecklistId);
 }
 
-function writeSession(session) {
-  localStorage.setItem(
-    SESSION_KEY,
-    JSON.stringify({ partyId: session.partyId, displayName: session.displayName }),
-  );
+function findChecklist(checklistId) {
+  return state.data.checklists.find((checklist) => checklist.id === checklistId);
 }
 
-function readSession() {
-  try {
-    const session = JSON.parse(localStorage.getItem(SESSION_KEY));
-    if (!session?.partyId || !session?.displayName) return null;
-    return session;
-  } catch {
-    clearSession();
-    return null;
+function sortedChecklists() {
+  return [...state.data.checklists].sort((left, right) => right.updatedAt - left.updatedAt);
+}
+
+function touchChecklist(checklist, timestamp = Date.now()) {
+  checklist.updatedAt = timestamp;
+}
+
+function cleanText(value) {
+  return String(value || "").trim().replace(/\s+/g, " ");
+}
+
+function createId(prefix) {
+  if (typeof crypto.randomUUID === "function") return `${prefix}-${crypto.randomUUID()}`;
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function toTimestamp(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : fallback;
+}
+
+function formatDate(timestamp) {
+  const value = Number(timestamp);
+  if (!value) return "just now";
+  const date = new Date(value);
+  const today = new Date();
+  if (date.toDateString() === today.toDateString()) {
+    return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   }
+  return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-function clearSession() {
-  localStorage.removeItem(SESSION_KEY);
-}
-
-function setConnectionStatus(stateName, label) {
-  elements.connectionStatus.dataset.state = stateName;
-  elements.statusLabel.textContent = label;
-}
-
-function setButtonBusy(button, busy, label, arrow = false) {
-  button.disabled = busy;
-  button.textContent = label;
-  if (!busy && arrow) {
-    const arrowSpan = document.createElement("span");
-    arrowSpan.setAttribute("aria-hidden", "true");
-    arrowSpan.textContent = "→";
-    button.append(arrowSpan);
-  }
+function relativeTime(timestamp) {
+  const value = Number(timestamp);
+  if (!value) return "Just now";
+  const seconds = Math.max(0, Math.floor((Date.now() - value) / 1000));
+  if (seconds < 45) return "Just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(value).toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
 function showMessage(element, message) {
@@ -533,71 +613,5 @@ function showToast(message, type = "") {
   toast.className = `toast ${type}`.trim();
   toast.textContent = message;
   elements.toastRegion.append(toast);
-  window.setTimeout(() => toast.remove(), 4200);
-}
-
-function handleFormError(error, messageElement, fallback) {
-  console.error(error);
-  showMessage(messageElement, readableError(error, fallback));
-}
-
-function readableError(error, fallback) {
-  if (error?.code === "PARTY_NOT_FOUND") return "That Party ID does not exist.";
-  if (error?.code === "INCORRECT_PASSWORD") return "That password is not correct.";
-  if (String(error?.code).includes("permission-denied")) {
-    return "Firebase blocked that change. Check the database rules in the README.";
-  }
-  if (String(error?.code).includes("network")) {
-    return "The connection dropped. Check your internet connection and try again.";
-  }
-  return fallback;
-}
-
-function cleanText(value) {
-  return String(value || "").trim().replace(/\s+/g, " ");
-}
-
-function normalizePartyId(value) {
-  return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-}
-
-function numberOrMax(value) {
-  return Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : Number.MAX_SAFE_INTEGER;
-}
-
-function getInitials(name) {
-  return String(name)
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("");
-}
-
-function activitySentence(activity) {
-  const name = activity.userName || "Someone";
-  const task = activity.taskText ? `“${activity.taskText}”` : "";
-  const actions = {
-    "created-party": `${name} created the party`,
-    joined: `${name} joined the party`,
-    left: `${name} left the party`,
-    added: `${name} added ${task}`,
-    completed: `${name} completed ${task}`,
-    reopened: `${name} reopened ${task}`,
-    edited: `${name} edited ${task}`,
-    deleted: `${name} deleted ${task}`,
-  };
-  return actions[activity.type] || `${name} updated the checklist`;
-}
-
-function relativeTime(timestamp) {
-  const value = Number(timestamp);
-  if (!value) return "Just now";
-  const seconds = Math.max(0, Math.floor((Date.now() - value) / 1000));
-  if (seconds < 45) return "Just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
+  window.setTimeout(() => toast.remove(), 3800);
 }

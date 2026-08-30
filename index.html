@@ -5,153 +5,97 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Create a shared party checklist and keep every guest in sync in real time."
+      content="Create personal checklists that stay saved privately on this device."
     />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Party Checklist" />
-    <meta property="og:description" content="One list. Everyone in sync." />
+    <meta property="og:title" content="My Checklists" />
+    <meta property="og:description" content="Every list. One calm place." />
     <meta property="og:url" content="https://adamfungus.github.io/CheckList/" />
     <meta property="og:image" content="https://adamfungus.github.io/CheckList/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Party Checklist — One list. Everyone in sync." />
+    <meta property="og:image:alt" content="My Checklists — Every list. One calm place." />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Party Checklist" />
-    <meta name="twitter:description" content="One list. Everyone in sync." />
+    <meta name="twitter:title" content="My Checklists" />
+    <meta name="twitter:description" content="Every list. One calm place." />
     <meta name="twitter:image" content="https://adamfungus.github.io/CheckList/og.png" />
     <meta name="theme-color" content="#fffaf3" />
-    <title>Party Checklist</title>
+    <title>My Checklists</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <div class="confetti confetti-one" aria-hidden="true"></div>
-    <div class="confetti confetti-two" aria-hidden="true"></div>
-
     <header class="site-header">
-      <a class="brand" href="#" aria-label="Party Checklist home">
+      <a class="brand" href="#" aria-label="My Checklists home">
         <span class="brand-mark" aria-hidden="true">✓</span>
-        <span>Party Checklist</span>
+        <span>My Checklists</span>
       </a>
-      <div id="connection-status" class="connection-status" data-state="setup" role="status">
+      <div id="connection-status" class="connection-status" data-state="local" role="status">
         <span class="status-dot" aria-hidden="true"></span>
-        <span class="status-label">Setup needed</span>
+        <span class="status-label">Saved locally</span>
       </div>
     </header>
 
     <main>
       <section id="welcome-view" class="view welcome-view" aria-labelledby="welcome-title">
         <div class="welcome-copy">
-          <p class="eyebrow">Plan together. Party sooner.</p>
-          <h1 id="welcome-title">One list.<br />Everyone in sync.</h1>
+          <p class="eyebrow">Private, simple, and always nearby.</p>
+          <h1 id="welcome-title">Every list.<br />One calm place.</h1>
           <p class="intro">
-            Make a private checklist, share the join code, and watch every update appear for the whole crew.
+            Keep separate checklists for errands, routines, trips, and whatever comes next—right on this device.
           </p>
 
           <div class="mini-preview" aria-label="Example checklist">
             <div class="preview-header">
-              <span>Friday night</span>
+              <span>Weekend reset</span>
               <strong>2 of 4 done</strong>
             </div>
             <div class="preview-progress" aria-hidden="true"><span></span></div>
             <ul>
-              <li class="done"><span class="preview-check">✓</span>Book the table</li>
-              <li class="done"><span class="preview-check">✓</span>Build the playlist</li>
-              <li><span class="preview-check"></span>Pick up ice</li>
-              <li><span class="preview-check"></span>Hang decorations</li>
+              <li class="done"><span class="preview-check">✓</span>Water the plants</li>
+              <li class="done"><span class="preview-check">✓</span>Plan the week</li>
+              <li><span class="preview-check"></span>Restock groceries</li>
+              <li><span class="preview-check"></span>Clear the inbox</li>
             </ul>
           </div>
         </div>
 
-        <div class="access-card">
-          <div class="mode-tabs" role="tablist" aria-label="Party access options">
-            <button
-              id="create-tab"
-              class="mode-tab active"
-              type="button"
-              role="tab"
-              aria-selected="true"
-              aria-controls="create-panel"
-              data-mode="create"
-            >
-              Create party
-            </button>
-            <button
-              id="join-tab"
-              class="mode-tab"
-              type="button"
-              role="tab"
-              aria-selected="false"
-              aria-controls="join-panel"
-              data-mode="join"
-            >
-              Join party
-            </button>
-          </div>
-
-          <div id="create-panel" class="form-panel" role="tabpanel" aria-labelledby="create-tab">
+        <div class="access-card checklist-library-card">
+          <div class="form-panel">
             <div class="panel-heading">
-              <p class="step-label">Start a new list</p>
-              <h2>What are we planning?</h2>
+              <p class="step-label">A fresh start</p>
+              <h2>Create a checklist</h2>
             </div>
-            <form id="create-form" novalidate>
-              <label for="party-name">Party name</label>
-              <input id="party-name" name="partyName" maxlength="60" autocomplete="off" placeholder="Maya's birthday" required />
-
-              <label for="creator-name">Your name</label>
-              <input id="creator-name" name="displayName" maxlength="40" autocomplete="name" placeholder="Alex" required />
-
-              <label for="create-password">Party password</label>
-              <div class="password-field">
-                <input id="create-password" name="password" type="password" minlength="6" maxlength="128" autocomplete="new-password" placeholder="At least 6 characters" required />
-                <button class="password-toggle" type="button" aria-label="Show password" data-password-toggle="create-password">Show</button>
-              </div>
-
+            <form id="create-checklist-form" novalidate>
+              <label for="checklist-name">Checklist name</label>
+              <input id="checklist-name" name="checklistName" maxlength="60" autocomplete="off" placeholder="Trip packing" required />
               <p id="create-error" class="form-message error-message" aria-live="polite"></p>
-              <button class="primary-button" type="submit">Create party <span aria-hidden="true">→</span></button>
+              <button class="primary-button" type="submit">Create checklist <span aria-hidden="true">→</span></button>
             </form>
-          </div>
-
-          <div id="join-panel" class="form-panel" role="tabpanel" aria-labelledby="join-tab" hidden>
-            <div class="panel-heading">
-              <p class="step-label">Hop into a shared list</p>
-              <h2>Bring the join code</h2>
-            </div>
-            <form id="join-form" novalidate>
-              <label for="party-id">Party ID</label>
-              <input id="party-id" class="code-input" name="partyId" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="K7MP9D2Q" required />
-
-              <label for="joiner-name">Your name</label>
-              <input id="joiner-name" name="displayName" maxlength="40" autocomplete="name" placeholder="Sam" required />
-
-              <label for="join-password">Party password</label>
-              <div class="password-field">
-                <input id="join-password" name="password" type="password" maxlength="128" autocomplete="current-password" placeholder="Enter the party password" required />
-                <button class="password-toggle" type="button" aria-label="Show password" data-password-toggle="join-password">Show</button>
+            <div class="library-divider"></div>
+            <div class="library-heading">
+              <div>
+                <p class="step-label">On this device</p>
+                <h2>Your checklists</h2>
               </div>
-
-              <p id="join-error" class="form-message error-message" aria-live="polite"></p>
-              <button class="primary-button" type="submit">Join party <span aria-hidden="true">→</span></button>
-            </form>
+              <span id="saved-list-count" class="count-badge">0</span>
+            </div>
+            <p id="empty-library" class="small-empty">Your first checklist will appear here.</p>
+            <ul id="saved-list-grid" class="saved-list-grid" aria-live="polite"></ul>
           </div>
-
-          <p class="privacy-note"><span aria-hidden="true">●</span> No account needed. Your browser gets a private guest identity.</p>
+          <p class="privacy-note"><span aria-hidden="true">●</span> No account or internet needed. Everything stays in this browser.</p>
         </div>
       </section>
 
-      <section id="checklist-view" class="view checklist-view" aria-labelledby="party-title" hidden>
-        <header class="party-header">
+      <section id="checklist-view" class="view checklist-view" aria-labelledby="checklist-title" hidden>
+        <header class="checklist-header">
           <div>
-            <p class="eyebrow">Shared checklist</p>
-            <h1 id="party-title">Party name</h1>
-            <p class="signed-in-as">You’re here as <strong id="current-user-name">Guest</strong></p>
+            <p class="eyebrow">Personal checklist</p>
+            <h1 id="checklist-title">Checklist name</h1>
+            <p class="signed-in-as">Saved privately in this browser.</p>
           </div>
-          <div class="party-actions">
-            <div class="join-code-block">
-              <span>Party ID</span>
-              <strong id="party-code">—</strong>
-              <button id="copy-code-button" class="text-button" type="button">Copy</button>
-            </div>
-            <button id="leave-button" class="secondary-button" type="button">Leave party</button>
+          <div class="checklist-actions">
+            <button id="back-to-lists-button" class="secondary-button" type="button">All checklists</button>
+            <button id="delete-checklist-button" class="secondary-button danger-button" type="button">Delete checklist</button>
           </div>
         </header>
 
@@ -159,7 +103,7 @@
           <section class="tasks-card" aria-labelledby="tasks-title">
             <div class="progress-heading">
               <div>
-                <p class="step-label">Party progress</p>
+                <p class="step-label">Checklist progress</p>
                 <h2 id="tasks-title"><span id="completed-count">0</span> of <span id="task-count">0</span> completed</h2>
               </div>
               <strong id="progress-percent" class="progress-percent">0%</strong>
@@ -178,26 +122,27 @@
             <div id="empty-tasks" class="empty-state">
               <span aria-hidden="true">✦</span>
               <h3>Your list is ready</h3>
-              <p>Add the first task and get this party moving.</p>
+              <p>Add the first task and give this list some momentum.</p>
             </div>
             <ul id="task-list" class="task-list" aria-live="polite"></ul>
           </section>
 
           <aside class="side-stack">
-            <section class="side-card" aria-labelledby="members-title">
+            <section class="side-card" aria-labelledby="list-switcher-title">
               <div class="side-card-heading">
-                <h2 id="members-title">Members</h2>
-                <span id="member-count" class="count-badge">0</span>
+                <h2 id="list-switcher-title">Your checklists</h2>
+                <span id="checklist-count" class="count-badge">0</span>
               </div>
-              <ul id="member-list" class="member-list"></ul>
+              <ul id="checklist-switcher" class="checklist-switcher"></ul>
+              <button id="new-checklist-button" class="secondary-button side-action-button" type="button">＋ New checklist</button>
             </section>
 
             <section class="side-card activity-card" aria-labelledby="activity-title">
               <div class="side-card-heading">
                 <h2 id="activity-title">Recent activity</h2>
-                <span class="live-label"><span aria-hidden="true"></span> Live</span>
+                <span class="live-label local-label"><span aria-hidden="true"></span> Local</span>
               </div>
-              <p id="empty-activity" class="small-empty">New updates will show up here.</p>
+              <p id="empty-activity" class="small-empty">Changes you make to this list will show up here.</p>
               <ul id="activity-list" class="activity-list" aria-live="polite"></ul>
             </section>
           </aside>
@@ -242,6 +187,6 @@
       </li>
     </template>
 
-    <script type="module" src="app.js"></script>
+    <script src="app.js" defer></script>
   </body>
 </html>
