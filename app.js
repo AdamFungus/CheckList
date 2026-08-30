@@ -38,12 +38,14 @@ const elements = {
   addTaskModal: document.querySelector("#add-task-modal"),
   addTaskForm: document.querySelector("#add-task-form"),
   newTaskInput: document.querySelector("#new-task-input"),
+  newTaskDescription: document.querySelector("#new-task-description"),
   addTaskError: document.querySelector("#add-task-error"),
   closeAddTaskModalButton: document.querySelector("#close-add-task-modal-button"),
   cancelAddTaskButton: document.querySelector("#cancel-add-task-button"),
   editModal: document.querySelector("#edit-modal"),
   editForm: document.querySelector("#edit-form"),
   editInput: document.querySelector("#edit-task-input"),
+  editDescriptionInput: document.querySelector("#edit-task-description"),
   editError: document.querySelector("#edit-error"),
   closeModalButton: document.querySelector("#close-modal-button"),
   cancelEditButton: document.querySelector("#cancel-edit-button"),
@@ -260,7 +262,11 @@ function renderTasks(checklist) {
     return left.createdAt - right.createdAt;
   });
   const tasks = state.taskSearchTerm
-    ? allTasks.filter((task) => matchesSearch(task.text, state.taskSearchTerm))
+    ? allTasks.filter(
+        (task) =>
+          matchesSearch(task.text, state.taskSearchTerm) ||
+          matchesSearch(task.description, state.taskSearchTerm),
+      )
     : allTasks;
 
   elements.taskList.replaceChildren();
@@ -276,6 +282,7 @@ function renderTasks(checklist) {
     const item = fragment.querySelector(".task-item");
     const checkButton = fragment.querySelector(".task-check");
     const text = fragment.querySelector(".task-text");
+    const description = fragment.querySelector(".task-description");
     const meta = fragment.querySelector(".task-meta");
     const editButton = fragment.querySelector(".edit-task-button");
     const deleteButton = fragment.querySelector(".delete-task-button");
@@ -283,6 +290,8 @@ function renderTasks(checklist) {
     item.dataset.taskId = task.id;
     item.classList.toggle("completed", task.completed);
     text.textContent = task.text;
+    description.textContent = task.description;
+    description.hidden = !task.description;
     meta.textContent = task.completed
       ? `Completed ${formatDate(task.completedAt)}`
       : `Added ${formatDate(task.createdAt)}`;
@@ -340,10 +349,11 @@ function handleAddTask(event) {
   event.preventDefault();
   const checklist = getActiveChecklist();
   const text = cleanText(elements.newTaskInput.value);
+  const description = cleanText(elements.newTaskDescription.value);
 
   if (!checklist) return;
   if (!text) {
-    showMessage(elements.addTaskError, "Add a short description before saving this task.");
+    showMessage(elements.addTaskError, "Add a task name before saving.");
     elements.newTaskInput.focus();
     return;
   }
@@ -352,6 +362,7 @@ function handleAddTask(event) {
   checklist.tasks.push({
     id: createId("task"),
     text,
+    description,
     completed: false,
     createdAt: now,
     completedAt: null,
@@ -383,6 +394,7 @@ function toggleTask(taskId) {
 function openEditModal(task) {
   state.editingTaskId = task.id;
   elements.editInput.value = task.text;
+  elements.editDescriptionInput.value = task.description;
   clearMessage(elements.editError);
   elements.editModal.hidden = false;
   updateModalBodyLock();
@@ -408,6 +420,7 @@ function handleEditTask(event) {
   const checklist = getActiveChecklist();
   const task = checklist?.tasks.find((item) => item.id === state.editingTaskId);
   const text = cleanText(elements.editInput.value);
+  const description = cleanText(elements.editDescriptionInput.value);
 
   if (!task || !checklist) {
     showMessage(elements.editError, "That task is no longer available.");
@@ -417,13 +430,14 @@ function handleEditTask(event) {
     showMessage(elements.editError, "A task cannot be blank.");
     return;
   }
-  if (text === task.text) {
+  if (text === task.text && description === task.description) {
     closeEditModal();
     return;
   }
 
   const now = Date.now();
   task.text = text;
+  task.description = description;
   addActivity(checklist, "edited", text, now);
   touchChecklist(checklist, now);
   if (!commitData()) return;
@@ -618,6 +632,7 @@ function normalizeTask(task) {
   return {
     id: typeof task?.id === "string" ? task.id : createId("task"),
     text: cleanText(task?.text) || "Untitled task",
+    description: cleanText(task?.description),
     completed: Boolean(task?.completed),
     createdAt: toTimestamp(task?.createdAt, Date.now()),
     completedAt: task?.completed ? toTimestamp(task?.completedAt, Date.now()) : null,

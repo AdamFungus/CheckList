@@ -194,8 +194,16 @@
           <button id="close-add-task-modal-button" class="icon-button" type="button" aria-label="Close add task dialog">×</button>
         </div>
         <form id="add-task-form" novalidate>
-          <label for="new-task-input">Task</label>
+          <label for="new-task-input">Task name</label>
           <input id="new-task-input" name="task" maxlength="180" autocomplete="off" placeholder="Book dentist appointment" />
+          <label for="new-task-description">Description <span class="optional-label">Optional</span></label>
+          <textarea
+            id="new-task-description"
+            name="description"
+            maxlength="500"
+            rows="4"
+            placeholder="Add notes, details, or a reminder…"
+          ></textarea>
           <p id="add-task-error" class="form-message error-message" aria-live="polite"></p>
           <div class="modal-actions">
             <button id="cancel-add-task-button" class="secondary-button" type="button">Cancel</button>
@@ -215,8 +223,10 @@
           <button id="close-modal-button" class="icon-button" type="button" aria-label="Close edit dialog">×</button>
         </div>
         <form id="edit-form" novalidate>
-          <label for="edit-task-input">Task</label>
+          <label for="edit-task-input">Task name</label>
           <input id="edit-task-input" maxlength="180" autocomplete="off" />
+          <label for="edit-task-description">Description <span class="optional-label">Optional</span></label>
+          <textarea id="edit-task-description" maxlength="500" rows="4"></textarea>
           <p id="edit-error" class="form-message error-message" aria-live="polite"></p>
           <div class="modal-actions">
             <button id="cancel-edit-button" class="secondary-button" type="button">Cancel</button>
@@ -233,6 +243,7 @@
         <button class="task-check" type="button" aria-label="Mark task complete"><span aria-hidden="true"></span></button>
         <div class="task-content">
           <p class="task-text"></p>
+          <p class="task-description" hidden></p>
           <p class="task-meta"></p>
         </div>
         <div class="task-actions">
