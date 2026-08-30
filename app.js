@@ -1,11 +1,102 @@
 const STORAGE_KEY = "myChecklists.data.v1";
-const CHECKY_HISTORY_KEY = "myChecklists.checky.v1";
+const CHECKY_HISTORY_KEY = "myChecklists.checkyLite.v1";
 const STORE_VERSION = 1;
 const MAX_ACTIVITY_ITEMS = 50;
-const CHECKY_ENDPOINT =
-  document.querySelector('meta[name="checky-api-url"]')?.content?.trim() || "/api/checky";
 const CHECKY_INTRO =
-  "Hi, I’m Checky! I can answer questions about the app, create a new checklist, or add tasks to one you already have.";
+  "Hi, I’m Checky Lite! I work right here on your device. I can create lists from my built-in templates, add tasks, and explain how the app works.";
+
+const CHECKY_TEMPLATES = [
+  {
+    name: "Kitchen Essentials",
+    aliases: ["kitchen essentials", "kitchen basics", "new kitchen"],
+    tasks: [
+      "Chef’s knife", "Cutting board", "Spatula", "Wooden spoon", "Can opener",
+      "Measuring cups and spoons", "Mixing bowls", "Frying pan", "Saucepan",
+      "Baking sheet", "Colander", "Plates and bowls", "Cups and mugs",
+      "Forks, knives, and spoons", "Dish soap and sponge", "Kitchen towels",
+      "Food storage containers",
+    ],
+  },
+  {
+    name: "Travel Packing",
+    aliases: ["travel packing", "packing list", "vacation packing", "trip packing", "travel essentials"],
+    tasks: [
+      "Photo ID or passport", "Wallet", "Phone and charger", "Travel confirmations",
+      "Medication", "Toiletries", "Underwear and socks", "Sleepwear", "Everyday outfits",
+      "Comfortable shoes", "Weather-appropriate layer", "Reusable water bottle", "Headphones",
+    ],
+  },
+  {
+    name: "Groceries",
+    aliases: ["grocery list", "groceries", "grocery basics", "food shopping"],
+    tasks: [
+      "Fresh fruit", "Fresh vegetables", "Bread", "Milk or dairy alternative", "Eggs",
+      "Rice or pasta", "Protein", "Breakfast food", "Snacks", "Coffee or tea",
+      "Cooking oil", "Pantry staples",
+    ],
+  },
+  {
+    name: "Home Cleaning",
+    aliases: ["cleaning list", "home cleaning", "house cleaning", "cleaning routine", "chores"],
+    tasks: [
+      "Put away clutter", "Dust surfaces", "Wipe counters", "Clean mirrors", "Scrub sinks",
+      "Clean the toilet", "Vacuum floors", "Mop hard floors", "Take out trash",
+      "Change bed sheets", "Wash towels",
+    ],
+  },
+  {
+    name: "Moving Day",
+    aliases: ["moving list", "moving checklist", "moving day", "move house", "moving essentials"],
+    tasks: [
+      "Book movers or a rental truck", "Collect boxes and packing tape", "Label boxes by room",
+      "Pack nonessential items", "Set aside important documents", "Update your address",
+      "Transfer utilities", "Pack an overnight bag", "Clean the old place",
+      "Photograph meter readings", "Keep keys accessible",
+    ],
+  },
+  {
+    name: "School Supplies",
+    aliases: ["school supplies", "school essentials", "back to school", "college supplies"],
+    tasks: [
+      "Backpack", "Notebooks", "Pens and pencils", "Highlighters", "Folders", "Planner",
+      "Calculator", "Laptop or tablet charger", "Reusable water bottle", "Lunch container",
+    ],
+  },
+  {
+    name: "Gym Bag",
+    aliases: ["gym bag", "gym essentials", "workout essentials", "workout list"],
+    tasks: [
+      "Workout clothes", "Training shoes", "Water bottle", "Small towel", "Headphones",
+      "Lock", "Toiletries", "Clean change of clothes", "Post-workout snack",
+    ],
+  },
+  {
+    name: "Morning Routine",
+    aliases: ["morning routine", "morning checklist", "start my day"],
+    tasks: [
+      "Drink water", "Make the bed", "Wash up and get dressed", "Eat breakfast",
+      "Check today’s schedule", "Choose top priorities", "Pack daily essentials", "Leave on time",
+    ],
+  },
+  {
+    name: "Bathroom Essentials",
+    aliases: ["bathroom essentials", "bathroom basics", "new bathroom"],
+    tasks: [
+      "Bath towels", "Hand towels", "Toilet paper", "Hand soap", "Shampoo and conditioner",
+      "Body wash", "Toothbrush and toothpaste", "Plunger", "Toilet brush", "Bath mat",
+      "Trash can", "Cleaning spray",
+    ],
+  },
+  {
+    name: "First Apartment",
+    aliases: ["first apartment", "new apartment", "apartment essentials", "first home"],
+    tasks: [
+      "Basic cookware", "Dishes and utensils", "Bed linens and pillows", "Bath towels",
+      "Cleaning supplies", "Trash bags", "Laundry detergent", "First-aid kit", "Tool kit",
+      "Power strip", "Flashlight", "Important contact numbers",
+    ],
+  },
+];
 
 const elements = {
   brand: document.querySelector(".brand"),
@@ -458,78 +549,184 @@ async function handleCheckySubmit(event) {
   state.checkyBusy = true;
   renderCheckyConversation();
 
-  try {
-    const response = await requestChecky(message);
-    const actionResult = applyCheckyActions(response.actions);
-    appendCheckyMessage(
-      "assistant",
-      response.reply || "Done — I’ve updated your checklists.",
-      actionResult.note,
-    );
-  } catch (error) {
-    const setupMissing = error.status === 404 || error.code === "missing_openai_key";
-    const reply = setupMissing
-      ? "My chat window is ready, but my secure AI connection still needs to be turned on for this copy of the site."
-      : "I couldn’t reach my AI connection just now. Your saved checklists were not changed, so please try again in a moment.";
-    appendCheckyMessage("assistant", reply);
-    console.error("Checky request failed", error);
-  } finally {
-    state.checkyBusy = false;
-    renderCheckyConversation();
-    if (!elements.checkyPanel.hidden) elements.checkyInput.focus();
-  }
+  const response = await requestChecky(message);
+  const actionResult = applyCheckyActions(response.actions);
+  appendCheckyMessage(
+    "assistant",
+    response.reply || "Done — I’ve updated your checklists.",
+    actionResult.note,
+  );
+  state.checkyBusy = false;
+  renderCheckyConversation();
+  if (!elements.checkyPanel.hidden) elements.checkyInput.focus();
 }
 
 async function requestChecky(message) {
-  const response = await fetch(CHECKY_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      message,
-      history: state.checkyMessages
-        .slice(0, -1)
-        .slice(-10)
-        .map(({ role, text }) => ({ role, text })),
-      context: buildCheckyContext(),
-    }),
-  });
+  await new Promise((resolve) => setTimeout(resolve, 260));
+  return buildLocalCheckyResponse(message);
+}
 
-  let payload = {};
-  try {
-    payload = await response.json();
-  } catch (error) {
-    console.warn("Checky returned a non-JSON response", error);
+function buildLocalCheckyResponse(message) {
+  const normalizedMessage = normalizeSearch(message);
+  const template = CHECKY_TEMPLATES.find((item) =>
+    item.aliases.some((alias) => normalizedMessage.includes(normalizeSearch(alias))),
+  );
+
+  const taskRequest = parseCheckyTaskRequest(message);
+  if (taskRequest) return taskRequest;
+
+  if (template && isCheckyListRequest(normalizedMessage)) {
+    return {
+      reply: `I found my built-in ${template.name} template and prepared it for you.`,
+      actions: [{
+        type: "create_checklist",
+        checklist_name: template.name,
+        checklist_id: "",
+        tasks: template.tasks,
+      }],
+    };
   }
 
-  if (!response.ok) {
-    const error = new Error(payload.error || `Checky request failed with ${response.status}`);
-    error.status = response.status;
-    error.code = payload.code || "request_failed";
-    throw error;
+  const requestedChecklistName = extractCheckyChecklistName(message);
+  if (requestedChecklistName) {
+    return {
+      reply: `I prepared “${requestedChecklistName}.” Tell me what you want to add to it.`,
+      actions: [{
+        type: "create_checklist",
+        checklist_name: requestedChecklistName,
+        checklist_id: "",
+        tasks: [],
+      }],
+    };
+  }
+
+  if (/\b(hello|hi|hey|good morning|good afternoon|good evening)\b/.test(normalizedMessage)) {
+    return checkyReply("Hi! I’m ready to help with your checklists. Ask what I can do, request one of my templates, or tell me to add tasks to an existing list.");
+  }
+
+  if (/\b(what can you do|help|commands|templates|ideas)\b/.test(normalizedMessage)) {
+    return checkyReply(
+      "I can create kitchen, packing, grocery, cleaning, moving, school, gym, morning routine, bathroom, and first-apartment lists. I can also add tasks to one of your lists and explain how this website works.",
+    );
+  }
+
+  if (/\b(save|saving|saved|storage|store|privacy|private|data|sync|offline|internet)\b/.test(normalizedMessage)) {
+    return checkyReply(
+      "Your lists and our chat are saved in this browser on this device. Nothing is sent to an AI service, and Checky Lite works offline. Your data does not automatically sync to another phone, browser, or computer.",
+    );
+  }
+
+  if (/\b(search|find|filter)\b/.test(normalizedMessage)) {
+    return checkyReply(
+      "Use the search box under Your checklists to find a list. Inside a checklist, use the task search box to filter its tasks.",
+    );
+  }
+
+  if (/\b(delete|remove|erase)\b/.test(normalizedMessage)) {
+    return checkyReply(
+      "Open a checklist and use Delete checklist to remove the whole list. To remove one task, use the delete control beside that task. The app asks you to confirm before deleting.",
+    );
+  }
+
+  if (/\b(add task|new task|create task)\b/.test(normalizedMessage)) {
+    return checkyReply(
+      "Open a checklist and select Add beside the task search box. You can also tell me something like “add milk and eggs to my Groceries list.”",
+    );
+  }
+
+  if (/\b(create|new|make|start).*(checklist|list)\b|\b(checklist|list).*(create|new|make|start)\b/.test(normalizedMessage)) {
+    return checkyReply(
+      "Name a list in the Create a checklist box, or tell me “create a checklist called Weekend.” I can fill it automatically when it matches one of my built-in templates.",
+    );
+  }
+
+  if (/\b(phone|home screen|install|app)\b/.test(normalizedMessage)) {
+    return checkyReply(
+      "Open the published website in your phone’s browser, then choose Add to Home Screen from the browser menu. Your phone keeps its own local copy of the checklists you create there.",
+    );
+  }
+
+  return checkyReply(
+    "I’m a free local helper, so I don’t answer unlimited general questions like ChatGPT. I can manage your checklists, explain this website, or make one of my built-in templates. Ask “what can you do?” to see the options.",
+  );
+}
+
+function checkyReply(reply, actions = []) {
+  return { reply, actions };
+}
+
+function isCheckyListRequest(normalizedMessage) {
+  return /\b(create|make|build|give|start|set up|plan|need|want|prepare)\b/.test(normalizedMessage)
+    || /\b(list|checklist|essentials)\b/.test(normalizedMessage);
+}
+
+function parseCheckyTaskRequest(message) {
+  const prefixMatch = message.match(/^\s*(?:please\s+)?(?:add|put|include)\s+(.+)$/i);
+  if (!prefixMatch) return null;
+
+  let taskText = prefixMatch[1].trim().replace(/[.!?]+$/, "");
+  let requestedListName = "";
+  const destinationMatches = [...taskText.matchAll(/\s+(?:to|onto|into)\s+(?:my\s+|the\s+)?/gi)];
+  const destination = destinationMatches.at(-1);
+  if (destination) {
+    requestedListName = taskText
+      .slice((destination.index || 0) + destination[0].length)
+      .replace(/\s+(?:list|checklist)\s*$/i, "")
+      .replace(/^["“”']+|["“”']+$/g, "")
+      .trim();
+    taskText = taskText.slice(0, destination.index).trim();
+  }
+
+  taskText = taskText.replace(/^(?:the\s+)?(?:tasks?|items?)\s+/i, "").trim();
+  const tasks = taskText
+    .split(/\s*(?:,|;|\n|\band\b)\s*/i)
+    .map((task) => cleanText(task).replace(/^[-–—•\d.)\s]+/, "").slice(0, 180))
+    .filter(Boolean)
+    .slice(0, 20);
+
+  if (tasks.length === 0) return checkyReply("Tell me which task or tasks you want to add.");
+
+  const checklist = findChecklistForChecky(requestedListName);
+  if (!checklist) {
+    const detail = requestedListName ? ` I couldn’t find a list named “${requestedListName}.”` : "";
+    return checkyReply(`${detail} Open a checklist first or include its name, like “add milk to my Groceries list.”`.trim());
   }
 
   return {
-    reply: cleanText(payload.reply),
-    actions: Array.isArray(payload.actions) ? payload.actions : [],
+    reply: `I’ll add ${tasks.length === 1 ? `“${tasks[0]}”` : `${tasks.length} tasks`} to ${checklist.name}.`,
+    actions: [{
+      type: "add_tasks",
+      checklist_name: checklist.name,
+      checklist_id: checklist.id,
+      tasks,
+    }],
   };
 }
 
-function buildCheckyContext() {
-  return {
-    currentView: elements.checklistView.hidden ? "checklist-library" : "open-checklist",
-    activeChecklistId: state.activeChecklistId || "",
-    checklists: sortedChecklists()
-      .slice(0, 24)
-      .map((checklist) => ({
-        id: checklist.id,
-        name: checklist.name,
-        taskCount: checklist.tasks.length,
-        incompleteCount: checklist.tasks.filter((task) => !task.completed).length,
-        tasks: checklist.tasks
-          .slice(0, checklist.id === state.activeChecklistId ? 40 : 10)
-          .map((task) => ({ text: task.text.slice(0, 180), completed: task.completed })),
-      })),
-  };
+function findChecklistForChecky(requestedName) {
+  if (!requestedName) {
+    return getActiveChecklist() || (state.data.checklists.length === 1 ? state.data.checklists[0] : null);
+  }
+
+  const normalizedName = normalizeSearch(requestedName);
+  return state.data.checklists.find((checklist) => normalizeSearch(checklist.name) === normalizedName)
+    || state.data.checklists.find((checklist) => {
+      const checklistName = normalizeSearch(checklist.name);
+      return checklistName.includes(normalizedName) || normalizedName.includes(checklistName);
+    })
+    || null;
+}
+
+function extractCheckyChecklistName(message) {
+  const calledMatch = message.match(/\b(?:called|named)\s+["“']?([^"”'.!?]{1,60})/i);
+  if (calledMatch) return cleanText(calledMatch[1]).slice(0, 60);
+
+  const leadingNameMatch = message.match(
+    /^\s*(?:please\s+)?(?:create|make|start|set up)\s+(?:a\s+|an\s+|my\s+|the\s+)?(.+?)\s+(?:list|checklist)\s*[.!?]*$/i,
+  );
+  if (leadingNameMatch) return cleanText(leadingNameMatch[1]).slice(0, 60);
+
+  return "";
 }
 
 function applyCheckyActions(actions) {
@@ -598,7 +795,10 @@ function applyCheckyActions(actions) {
     affectedChecklist = checklist;
   });
 
-  if (!dataChanged || !affectedChecklist) {
+  if (!affectedChecklist) return { note: "" };
+
+  if (!dataChanged) {
+    openChecklist(affectedChecklist.id, false);
     return { note: "No new items were needed" };
   }
 
@@ -614,7 +814,7 @@ function applyCheckyActions(actions) {
     ? `${tasksAdded === 1 ? "added 1 task" : `added ${tasksAdded} tasks`}`
     : "";
   const note = [listPart, taskPart].filter(Boolean).join(" and ");
-  showToast(`${note || "Checklist updated"} with Checky.`, "success");
+  showToast(`${note || "Checklist updated"} with Checky Lite.`, "success");
   return { note };
 }
 

@@ -8,8 +8,8 @@ A private, responsive checklist app that saves multiple lists directly in the br
 - Search saved checklists and filter tasks by name
 - Add, complete, reopen, edit, and delete tasks
 - Add tasks from a focused popup instead of typing into the search bar
-- Ask **Checky**, the rabbit AI assistant, for website help or a ready-made checklist
-- Let Checky create checklists and add tasks after validating its suggestions locally
+- Ask **Checky Lite**, the free offline rabbit helper, for website help or a ready-made checklist
+- Let Checky Lite create checklists from built-in templates and add tasks by command
 - Incomplete tasks appear before completed tasks
 - Progress totals and progress bars update immediately
 - Recent activity is kept separately for each checklist
@@ -27,7 +27,7 @@ myChecklists.data.v1
 
 Saving is automatic after every change. The app does not send checklist names, tasks, or activity to a server.
 
-The exception is **Checky**: when you send Checky a message, the app sends that message, recent chat turns, checklist names, and a limited set of task text to the secure `/api/checky` endpoint. The endpoint calls the OpenAI Responses API with `store: false`. The API key remains on the server and is never included in browser code.
+**Checky Lite also runs entirely in the browser.** Its templates and command matching are included in `app.js`, so messages, checklist names, and tasks never leave the device.
 
 Important limitations:
 
@@ -36,7 +36,6 @@ Important limitations:
 - Private/incognito windows may erase data when the window closes.
 - Another person using the same browser profile can open the checklists.
 - Browser storage is convenient, but it is not a substitute for a backup of important information.
-- Do not send sensitive personal information to Checky; AI requests leave the device for processing.
 
 ## Files
 
@@ -44,11 +43,8 @@ Important limitations:
 | --- | --- |
 | `index.html` | Checklist library, task workspace, dialogs, Checky panel, and social metadata |
 | `style.css` | Responsive visual design |
-| `app.js` | Checklist behavior, local device storage, and validated Checky actions |
+| `app.js` | Checklist behavior, local device storage, and Checky Lite’s templates and commands |
 | `assets/checky.png` | Checky's face-only rabbit mascot |
-| `api/checky.js` | Secure server-side OpenAI endpoint |
-| `.env.example` | Required server configuration names without secrets |
-| `vercel.json` | Serverless function configuration |
 | `og.png` | Social sharing image |
 | `.nojekyll` | Makes GitHub Pages serve the static files as-is |
 
@@ -56,7 +52,7 @@ Firebase configuration, authentication, database code, and database rules are no
 
 ## Run locally
 
-You can open `index.html` directly, but a small local server more closely matches GitHub Pages. The checklist features work this way; Checky needs the secure server endpoint described below.
+You can open `index.html` directly, but a small local server more closely matches GitHub Pages. Every feature, including Checky Lite, works without a backend.
 
 From this repository folder, use one of these commands:
 
@@ -74,23 +70,11 @@ Then open [http://localhost:5500](http://localhost:5500).
 
 You can also use the **Live Server** extension in Visual Studio Code.
 
-## Turn on Checky
+## Checky Lite
 
-Checky uses the OpenAI API through a server function so the API key never appears in the website's JavaScript.
+Checky Lite needs no API key, subscription, account, server function, or internet connection. It recognizes checklist commands locally and includes templates for kitchen essentials, travel packing, groceries, home cleaning, moving, school supplies, a gym bag, a morning routine, bathroom essentials, and a first apartment.
 
-1. Create an API key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
-2. Copy `.env.example` to `.env.local` and set `OPENAI_API_KEY` there. Never commit that file.
-3. Install the [Vercel CLI](https://vercel.com/docs/cli), then run:
-
-   ```bash
-   vercel dev
-   ```
-
-4. Open the local URL printed by Vercel and ask Checky a question.
-
-The default model is `gpt-5-mini`. You can change `OPENAI_MODEL` in the server environment without editing browser code.
-
-For production, import this repository into Vercel and add `OPENAI_API_KEY` as a protected environment variable. If the frontend and API use different domains, add the exact frontend origin to `CHECKY_ALLOWED_ORIGINS` and change the `checky-api-url` meta tag in `index.html` to the deployed endpoint.
+It is intentionally smaller than ChatGPT: it cannot answer unlimited general questions or invent a complete list for every possible topic. Ask **“what can you do?”** in the chat to see its supported help.
 
 ## Publish with GitHub Pages
 
@@ -109,7 +93,7 @@ For production, import this repository into Vercel and add `OPENAI_API_KEY` as a
 6. Select **Save**.
 7. Open `https://adamfungus.github.io/CheckList/` after the deployment finishes.
 
-The local checklist features still require no environment variables, API keys, Firebase project, or external service settings. Checky will display a setup message until its secure OpenAI endpoint is configured. GitHub Pages cannot run the included server function by itself; either deploy the full project to Vercel or point the `checky-api-url` meta tag at a separately deployed secure endpoint.
+All checklist features and Checky Lite work on GitHub Pages without environment variables, API keys, Firebase, or external service settings.
 
 ## Quick test
 
@@ -122,5 +106,5 @@ The local checklist features still require no environment variables, API keys, F
 7. Refresh the page and confirm the last open list returns.
 8. Return to **All checklists**, search by checklist name, and confirm the matching list is shown.
 9. Delete a task and a checklist, confirming that the app asks before deleting.
-10. With the secure endpoint configured, ask Checky to create a kitchen essentials checklist.
+10. Ask Checky Lite to create a kitchen essentials checklist.
 11. Ask Checky how saving works and confirm it answers without changing a list.
