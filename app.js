@@ -1,4 +1,5 @@
 const STORAGE_KEY = "myChecklists.data.v1";
+const TASK_SORT_KEY = "myChecklists.taskSort.v1";
 const STORE_VERSION = 1;
 const MAX_ACTIVITY_ITEMS = 50;
 
@@ -19,6 +20,7 @@ const elements = {
   deleteChecklistButton: document.querySelector("#delete-checklist-button"),
   newChecklistButton: document.querySelector("#new-checklist-button"),
   taskSearchInput: document.querySelector("#task-search-input"),
+  taskSortSelect: document.querySelector("#task-sort-select"),
   openAddTaskButton: document.querySelector("#open-add-task-button"),
   taskList: document.querySelector("#task-list"),
   taskTemplate: document.querySelector("#task-template"),
@@ -54,8 +56,10 @@ const state = {
   editingTaskId: null,
   checklistSearchTerm: "",
   taskSearchTerm: "",
+  taskSortOrder: loadTaskSortOrder(),
 };
 
+elements.taskSortSelect.value = state.taskSortOrder;
 bindInterface();
 restoreLastView();
 
@@ -70,6 +74,7 @@ function bindInterface() {
   elements.deleteChecklistButton.addEventListener("click", () => deleteChecklist(state.activeChecklistId));
   elements.checklistSearchInput.addEventListener("input", handleChecklistSearch);
   elements.taskSearchInput.addEventListener("input", handleTaskSearch);
+  elements.taskSortSelect.addEventListener("change", handleTaskSort);
   elements.openAddTaskButton.addEventListener("click", openAddTaskModal);
   elements.addTaskForm.addEventListener("submit", handleAddTask);
   elements.closeAddTaskModalButton.addEventListener("click", closeAddTaskModal);
@@ -247,8 +252,11 @@ function renderActiveChecklist() {
 }
 
 function renderTasks(checklist) {
+  const completedDirection = state.taskSortOrder === "completed-first" ? -1 : 1;
   const allTasks = [...checklist.tasks].sort((left, right) => {
-    if (left.completed !== right.completed) return Number(left.completed) - Number(right.completed);
+    if (left.completed !== right.completed) {
+      return (Number(left.completed) - Number(right.completed)) * completedDirection;
+    }
     return left.createdAt - right.createdAt;
   });
   const tasks = state.taskSearchTerm
@@ -299,6 +307,13 @@ function handleChecklistSearch(event) {
 
 function handleTaskSearch(event) {
   state.taskSearchTerm = normalizeSearch(event.target.value);
+  const checklist = getActiveChecklist();
+  if (checklist) renderTasks(checklist);
+}
+
+function handleTaskSort(event) {
+  state.taskSortOrder = event.target.value === "completed-first" ? "completed-first" : "incomplete-first";
+  saveTaskSortOrder();
   const checklist = getActiveChecklist();
   if (checklist) renderTasks(checklist);
 }
@@ -566,6 +581,23 @@ function loadData() {
     console.warn("Saved checklist data could not be read", error);
   }
   return { version: STORE_VERSION, activeChecklistId: null, checklists: [] };
+}
+
+function loadTaskSortOrder() {
+  try {
+    return localStorage.getItem(TASK_SORT_KEY) === "completed-first" ? "completed-first" : "incomplete-first";
+  } catch (error) {
+    console.error("Task sort preference could not be loaded", error);
+    return "incomplete-first";
+  }
+}
+
+function saveTaskSortOrder() {
+  try {
+    localStorage.setItem(TASK_SORT_KEY, state.taskSortOrder);
+  } catch (error) {
+    console.error("Task sort preference could not be saved", error);
+  }
 }
 
 function normalizeChecklist(checklist) {

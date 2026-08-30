@@ -678,12 +678,37 @@ form input:focus,
 
 .task-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(158px, auto) auto;
   gap: 10px;
 }
 
 .task-search input {
   height: 54px;
+}
+
+.task-sort select {
+  width: 100%;
+  height: 54px;
+  padding: 0 38px 0 14px;
+  border: 1px solid #dcd2ca;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  background-color: white;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.task-sort select:hover {
+  border-color: #bfb0bd;
+}
+
+.task-sort select:focus {
+  border-color: var(--plum);
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(88, 48, 94, 0.1);
 }
 
 .add-button {

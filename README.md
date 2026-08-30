@@ -8,7 +8,7 @@ A private, responsive checklist app that saves multiple lists directly in the br
 - Search saved checklists and filter tasks by name
 - Add, complete, reopen, edit, and delete tasks
 - Add tasks from a focused popup instead of typing into the search bar
-- Incomplete tasks appear before completed tasks
+- Sort tasks with incomplete or completed items first
 - Progress totals and progress bars update immediately
 - Recent activity is kept separately for each checklist
 - The last open checklist is restored after a refresh
@@ -90,8 +90,9 @@ No environment variables, API keys, Firebase project, or external service settin
 2. Add several tasks to each one.
 3. Search for a task, then clear the search and confirm every task returns.
 4. Select **Add**, create a task in the popup, and confirm it appears in the list.
-5. Complete, reopen, and edit a task.
-6. Switch between the lists and confirm each keeps its own tasks and activity.
-7. Refresh the page and confirm the last open list returns.
-8. Return to **All checklists**, search by checklist name, and confirm the matching list is shown.
-9. Delete a task and a checklist, confirming that the app asks before deleting.
+5. Switch the task sort between **Incomplete first** and **Completed first** and confirm the order changes.
+6. Complete, reopen, and edit a task.
+7. Switch between the lists and confirm each keeps its own tasks and activity.
+8. Refresh the page and confirm the last open list and task sort return.
+9. Return to **All checklists**, search by checklist name, and confirm the matching list is shown.
+10. Delete a task and a checklist, confirming that the app asks before deleting.
