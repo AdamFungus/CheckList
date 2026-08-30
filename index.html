@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Create a shared party checklist and keep every guest in sync in real time."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Party Checklist" />
+    <meta property="og:description" content="One list. Everyone in sync." />
+    <meta property="og:url" content="https://adamfungus.github.io/CheckList/" />
+    <meta property="og:image" content="https://adamfungus.github.io/CheckList/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Party Checklist — One list. Everyone in sync." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Party Checklist" />
+    <meta name="twitter:description" content="One list. Everyone in sync." />
+    <meta name="twitter:image" content="https://adamfungus.github.io/CheckList/og.png" />
+    <meta name="theme-color" content="#fffaf3" />
+    <title>Party Checklist</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="confetti confetti-one" aria-hidden="true"></div>
+    <div class="confetti confetti-two" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <a class="brand" href="#" aria-label="Party Checklist home">
+        <span class="brand-mark" aria-hidden="true">✓</span>
+        <span>Party Checklist</span>
+      </a>
+      <div id="connection-status" class="connection-status" data-state="setup" role="status">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span class="status-label">Setup needed</span>
+      </div>
+    </header>
+
+    <main>
+      <section id="welcome-view" class="view welcome-view" aria-labelledby="welcome-title">
+        <div class="welcome-copy">
+          <p class="eyebrow">Plan together. Party sooner.</p>
+          <h1 id="welcome-title">One list.<br />Everyone in sync.</h1>
+          <p class="intro">
+            Make a private checklist, share the join code, and watch every update appear for the whole crew.
+          </p>
+
+          <div class="mini-preview" aria-label="Example checklist">
+            <div class="preview-header">
+              <span>Friday night</span>
+              <strong>2 of 4 done</strong>
+            </div>
+            <div class="preview-progress" aria-hidden="true"><span></span></div>
+            <ul>
+              <li class="done"><span class="preview-check">✓</span>Book the table</li>
+              <li class="done"><span class="preview-check">✓</span>Build the playlist</li>
+              <li><span class="preview-check"></span>Pick up ice</li>
+              <li><span class="preview-check"></span>Hang decorations</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="access-card">
+          <div class="mode-tabs" role="tablist" aria-label="Party access options">
+            <button
+              id="create-tab"
+              class="mode-tab active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="create-panel"
+              data-mode="create"
+            >
+              Create party
+            </button>
+            <button
+              id="join-tab"
+              class="mode-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="join-panel"
+              data-mode="join"
+            >
+              Join party
+            </button>
+          </div>
+
+          <div id="create-panel" class="form-panel" role="tabpanel" aria-labelledby="create-tab">
+            <div class="panel-heading">
+              <p class="step-label">Start a new list</p>
+              <h2>What are we planning?</h2>
+            </div>
+            <form id="create-form" novalidate>
+              <label for="party-name">Party name</label>
+              <input id="party-name" name="partyName" maxlength="60" autocomplete="off" placeholder="Maya's birthday" required />
+
+              <label for="creator-name">Your name</label>
+              <input id="creator-name" name="displayName" maxlength="40" autocomplete="name" placeholder="Alex" required />
+
+              <label for="create-password">Party password</label>
+              <div class="password-field">
+                <input id="create-password" name="password" type="password" minlength="6" maxlength="128" autocomplete="new-password" placeholder="At least 6 characters" required />
+                <button class="password-toggle" type="button" aria-label="Show password" data-password-toggle="create-password">Show</button>
+              </div>
+
+              <p id="create-error" class="form-message error-message" aria-live="polite"></p>
+              <button class="primary-button" type="submit">Create party <span aria-hidden="true">→</span></button>
+            </form>
+          </div>
+
+          <div id="join-panel" class="form-panel" role="tabpanel" aria-labelledby="join-tab" hidden>
+            <div class="panel-heading">
+              <p class="step-label">Hop into a shared list</p>
+              <h2>Bring the join code</h2>
+            </div>
+            <form id="join-form" novalidate>
+              <label for="party-id">Party ID</label>
+              <input id="party-id" class="code-input" name="partyId" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="K7MP9D2Q" required />
+
+              <label for="joiner-name">Your name</label>
+              <input id="joiner-name" name="displayName" maxlength="40" autocomplete="name" placeholder="Sam" required />
+
+              <label for="join-password">Party password</label>
+              <div class="password-field">
+                <input id="join-password" name="password" type="password" maxlength="128" autocomplete="current-password" placeholder="Enter the party password" required />
+                <button class="password-toggle" type="button" aria-label="Show password" data-password-toggle="join-password">Show</button>
+              </div>
+
+              <p id="join-error" class="form-message error-message" aria-live="polite"></p>
+              <button class="primary-button" type="submit">Join party <span aria-hidden="true">→</span></button>
+            </form>
+          </div>
+
+          <p class="privacy-note"><span aria-hidden="true">●</span> No account needed. Your browser gets a private guest identity.</p>
+        </div>
+      </section>
+
+      <section id="checklist-view" class="view checklist-view" aria-labelledby="party-title" hidden>
+        <header class="party-header">
+          <div>
+            <p class="eyebrow">Shared checklist</p>
+            <h1 id="party-title">Party name</h1>
+            <p class="signed-in-as">You’re here as <strong id="current-user-name">Guest</strong></p>
+          </div>
+          <div class="party-actions">
+            <div class="join-code-block">
+              <span>Party ID</span>
+              <strong id="party-code">—</strong>
+              <button id="copy-code-button" class="text-button" type="button">Copy</button>
+            </div>
+            <button id="leave-button" class="secondary-button" type="button">Leave party</button>
+          </div>
+        </header>
+
+        <div class="checklist-layout">
+          <section class="tasks-card" aria-labelledby="tasks-title">
+            <div class="progress-heading">
+              <div>
+                <p class="step-label">Party progress</p>
+                <h2 id="tasks-title"><span id="completed-count">0</span> of <span id="task-count">0</span> completed</h2>
+              </div>
+              <strong id="progress-percent" class="progress-percent">0%</strong>
+            </div>
+            <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Checklist progress">
+              <span id="progress-fill"></span>
+            </div>
+
+            <form id="task-form" class="task-form" novalidate>
+              <label class="sr-only" for="task-input">Add something to do</label>
+              <input id="task-input" name="task" maxlength="180" autocomplete="off" placeholder="Add something to do…" />
+              <button class="primary-button add-button" type="submit"><span aria-hidden="true">＋</span> Add</button>
+            </form>
+            <p id="task-error" class="form-message error-message" aria-live="polite"></p>
+
+            <div id="empty-tasks" class="empty-state">
+              <span aria-hidden="true">✦</span>
+              <h3>Your list is ready</h3>
+              <p>Add the first task and get this party moving.</p>
+            </div>
+            <ul id="task-list" class="task-list" aria-live="polite"></ul>
+          </section>
+
+          <aside class="side-stack">
+            <section class="side-card" aria-labelledby="members-title">
+              <div class="side-card-heading">
+                <h2 id="members-title">Members</h2>
+                <span id="member-count" class="count-badge">0</span>
+              </div>
+              <ul id="member-list" class="member-list"></ul>
+            </section>
+
+            <section class="side-card activity-card" aria-labelledby="activity-title">
+              <div class="side-card-heading">
+                <h2 id="activity-title">Recent activity</h2>
+                <span class="live-label"><span aria-hidden="true"></span> Live</span>
+              </div>
+              <p id="empty-activity" class="small-empty">New updates will show up here.</p>
+              <ul id="activity-list" class="activity-list" aria-live="polite"></ul>
+            </section>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <div id="edit-modal" class="modal-backdrop" hidden>
+      <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-title">
+        <div class="modal-heading">
+          <div>
+            <p class="step-label">Update task</p>
+            <h2 id="edit-title">Edit this item</h2>
+          </div>
+          <button id="close-modal-button" class="icon-button" type="button" aria-label="Close edit dialog">×</button>
+        </div>
+        <form id="edit-form" novalidate>
+          <label for="edit-task-input">Task</label>
+          <input id="edit-task-input" maxlength="180" autocomplete="off" />
+          <p id="edit-error" class="form-message error-message" aria-live="polite"></p>
+          <div class="modal-actions">
+            <button id="cancel-edit-button" class="secondary-button" type="button">Cancel</button>
+            <button class="primary-button" type="submit">Save changes</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+    <template id="task-template">
+      <li class="task-item">
+        <button class="task-check" type="button" aria-label="Mark task complete"><span aria-hidden="true"></span></button>
+        <div class="task-content">
+          <p class="task-text"></p>
+          <p class="task-meta"></p>
+        </div>
+        <div class="task-actions">
+          <button class="icon-button edit-task-button" type="button" aria-label="Edit task">Edit</button>
+          <button class="icon-button danger delete-task-button" type="button" aria-label="Delete task">Delete</button>
+        </div>
+      </li>
+    </template>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
